@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
 
 // Detail page for displaying a single manga's full info
-class RandomPage extends StatelessWidget {
+class MangaPage extends StatelessWidget {
   final Manga manga;
 
-  const RandomPage({super.key, required this.manga});
+  const MangaPage({super.key, required this.manga});
 
   @override
   Widget build(BuildContext context) {

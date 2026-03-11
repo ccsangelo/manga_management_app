@@ -62,7 +62,7 @@ class _HomePageState extends State<HomePage> {
           if (state is RandomSuccess) {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => RandomPage(manga: state.manga),
+                builder: (_) => MangaPage(manga: state.manga),
               ),
             );
           }

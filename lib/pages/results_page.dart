@@ -87,7 +87,7 @@ class _ResultsPageState extends State<ResultsPage> {
                     return ListTile(
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => RandomPage(manga: manga),
+                          builder: (_) => MangaPage(manga: manga),
                         ),
                       ),
                       leading: manga.imageUrl != null
