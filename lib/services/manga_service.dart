@@ -1,36 +1,67 @@
-import 'dart:convert';
-
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import 'package:manga_recommendation_app/config/app_config.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/models/manga_search_result.dart';
 
-// Handles all Jikan API interactions for manga data
+// Exception for search errors
+class SearchFailureException implements Exception {
+  final String message;
+  const SearchFailureException(this.message);
+  @override
+  String toString() => message;
+}
+
+// Exception for random fetch errors
+class RandomFetchException implements Exception {
+  final String message;
+  const RandomFetchException(this.message);
+  @override
+  String toString() => message;
+}
+
+// Jikan API service
 class MangaService {
-  static const _baseUrl = 'https://api.jikan.moe/v4';
   static const _nsfwGenres = ['ecchi', 'erotica', 'hentai'];
   static const _maxRandomRetries = 5;
 
-  final http.Client _client;
+  String get _baseUrl => AppConfig.baseUrl;
+
+  final Dio _dio;
   Map<String, int>? _genreMap;
 
-  MangaService({http.Client? client}) : _client = client ?? http.Client();
+  MangaService({Dio? dio}) : _dio = dio ?? Dio();
+
+  // Maps a DioException to a user-friendly message
+  String _dioErrorMessage(DioException e) {
+    return switch (e.type) {
+      DioExceptionType.connectionTimeout =>
+        'Connection timed out. Please check your internet.',
+      DioExceptionType.receiveTimeout =>
+        'Server took too long to respond. Try again later.',
+      DioExceptionType.badResponse =>
+        'The server returned an error. Please try again later.',
+      DioExceptionType.connectionError => 'No internet connection.',
+      _ => 'An unexpected network error occurred.',
+    };
+  }
 
   // Fetches and caches genre/theme ID mappings from Jikan
   Future<Map<String, int>> _getGenreMap() async {
     if (_genreMap != null) return _genreMap!;
 
-    final uri = Uri.parse('$_baseUrl/genres/manga');
-    final response = await _client.get(uri);
+    try {
+      final response =
+          await _dio.get<Map<String, dynamic>>('$_baseUrl/genres/manga');
+      final items = (response.data?['data'] as List<dynamic>?) ?? [];
 
-    if (response.statusCode != 200) return {};
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final items = data['data'] as List<dynamic>;
-
-    _genreMap = {
-      for (final item in items)
-        (item['name'] as String).toLowerCase(): item['mal_id'] as int,
-    };
+      _genreMap = {
+        for (final item in items)
+          (item['name'] as String).toLowerCase(): item['mal_id'] as int,
+      };
+    } on DioException catch (e) {
+      _genreMap = {};
+      throw SearchFailureException(_dioErrorMessage(e));
+    }
 
     return _genreMap!;
   }
@@ -56,9 +87,14 @@ class MangaService {
       );
     }
 
-    final genreMap = await _getGenreMap();
-    final genreIds = <int>{};
+    final Map<String, int> genreMap;
+    try {
+      genreMap = await _getGenreMap();
+    } on SearchFailureException {
+      rethrow;
+    }
 
+    final genreIds = <int>{};
     for (final keyword in keywordList) {
       final id = _findGenreId(keyword, genreMap);
       if (id != null) genreIds.add(id);
@@ -73,7 +109,7 @@ class MangaService {
       );
     }
 
-    final queryParams = <String, String>{
+    final queryParams = <String, dynamic>{
       'limit': '25',
       'page': page.toString(),
       'order_by': 'score',
@@ -81,39 +117,40 @@ class MangaService {
       'genres': genreIds.join(','),
     };
 
-    // API-level adult content filter when NSFW is disabled
+    // NSFW filter
     if (!nsfwEnabled) queryParams['sfw'] = 'true';
 
-    final uri =
-        Uri.parse('$_baseUrl/manga').replace(queryParameters: queryParams);
-    final response = await _client.get(uri);
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_baseUrl/manga',
+        queryParameters: queryParams,
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to search manga (${response.statusCode})');
+      final data = response.data!;
+      final items = data['data'] as List<dynamic>;
+      final pagination = data['pagination'] as Map<String, dynamic>?;
+
+      var results = items
+          .map((item) => Manga.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      // Remove NSFW results
+      if (!nsfwEnabled) {
+        results = results.where((manga) => !_isNsfw(manga)).toList();
+      }
+
+      return MangaSearchResult(
+        results: results,
+        currentPage: page,
+        lastPage: pagination?['last_visible_page'] as int? ?? 1,
+        hasNextPage: pagination?['has_next_page'] as bool? ?? false,
+      );
+    } on DioException catch (e) {
+      throw SearchFailureException(_dioErrorMessage(e));
     }
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final items = data['data'] as List<dynamic>;
-    final pagination = data['pagination'] as Map<String, dynamic>?;
-
-    var results = items
-        .map((item) => Manga.fromJson(item as Map<String, dynamic>))
-        .toList();
-
-    // Client-side NSFW filtering for ecchi/erotica/hentai
-    if (!nsfwEnabled) {
-      results = results.where((manga) => !_isNsfw(manga)).toList();
-    }
-
-    return MangaSearchResult(
-      results: results,
-      currentPage: page,
-      lastPage: pagination?['last_visible_page'] as int? ?? 1,
-      hasNextPage: pagination?['has_next_page'] as bool? ?? false,
-    );
   }
 
-  // Matches a keyword to a genre/theme ID (exact match, then partial)
+  // Finds a genre ID by keyword
   int? _findGenreId(String keyword, Map<String, int> genreMap) {
     if (genreMap.containsKey(keyword)) return genreMap[keyword];
 
@@ -126,7 +163,7 @@ class MangaService {
     return null;
   }
 
-  // Checks if manga has NSFW genres (ecchi, erotica, hentai)
+  // Checks if a manga is NSFW
   bool _isNsfw(Manga manga) {
     for (final keyword in _nsfwGenres) {
       if (manga.genres.any((g) => g.contains(keyword)) ||
@@ -138,29 +175,28 @@ class MangaService {
     return false;
   }
 
-  // Fetches a random manga with retry logic for NSFW filtering
+  // Fetches a random manga
   Future<Manga> getRandom({bool nsfwEnabled = false}) async {
     for (var attempt = 0; attempt < _maxRandomRetries; attempt++) {
-      // Rate limit delay between retries
+      // Delay between retries
       if (attempt > 0) {
         await Future.delayed(const Duration(seconds: 1));
       }
 
-      final uri = Uri.parse('$_baseUrl/random/manga');
-      final response = await _client.get(uri);
+      try {
+        final response = await _dio
+            .get<Map<String, dynamic>>('$_baseUrl/random/manga');
+        final manga = Manga.fromJson(
+            response.data!['data'] as Map<String, dynamic>);
 
-      if (response.statusCode != 200) {
-        throw Exception(
-            'Failed to fetch random manga (${response.statusCode})');
+        if (nsfwEnabled || !_isNsfw(manga)) return manga;
+      } on DioException catch (e) {
+        throw RandomFetchException(_dioErrorMessage(e));
       }
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final manga = Manga.fromJson(data['data'] as Map<String, dynamic>);
-
-      if (nsfwEnabled || !_isNsfw(manga)) return manga;
     }
 
-    throw Exception(
+    throw const RandomFetchException(
         'Could not find a non-NSFW manga after $_maxRandomRetries attempts. Please try again.');
   }
 }
+

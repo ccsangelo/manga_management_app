@@ -32,8 +32,10 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
         currentPage: result.currentPage,
         lastPage: result.lastPage,
       ));
+    } on SearchFailureException catch (e) {
+      emit(SearchFailure(e.message));
     } catch (e) {
-      emit(SearchFailure(e.toString()));
+      emit(SearchFailure('An unexpected error occurred.'));
     }
   }
 
@@ -55,8 +57,10 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
         currentPage: result.currentPage,
         lastPage: result.lastPage,
       ));
+    } on SearchFailureException catch (e) {
+      emit(SearchFailure(e.message));
     } catch (e) {
-      emit(SearchFailure(e.toString()));
+      emit(SearchFailure('An unexpected error occurred.'));
     }
   }
 
@@ -71,8 +75,10 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
         nsfwEnabled: event.nsfwEnabled,
       );
       emit(RandomSuccess(manga));
+    } on RandomFetchException catch (e) {
+      emit(RandomFailure(e.message));
     } catch (e) {
-      emit(RandomFailure(e.toString()));
+      emit(RandomFailure('An unexpected error occurred.'));
     }
   }
 }
