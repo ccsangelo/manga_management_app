@@ -1,15 +1,15 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
 
-class MangaSearchResult {
-  final List<Manga> results;
-  final int currentPage;
-  final int lastPage;
-  final bool hasNextPage;
+part 'manga_search_result.freezed.dart';
 
-  const MangaSearchResult({
-    required this.results,
-    required this.currentPage,
-    required this.lastPage,
-    required this.hasNextPage,
-  });
+// Paginated search result model
+@freezed
+class MangaSearchResult with _$MangaSearchResult {
+  const factory MangaSearchResult({
+    required List<Manga> results,
+    required int currentPage,
+    required int lastPage,
+    required bool hasNextPage,
+  }) = _MangaSearchResult;
 }
