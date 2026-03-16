@@ -34,39 +34,18 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: BlocListener<SearchBloc, SearchState>(
+        listenWhen: (_, state) => state is RandomSuccess || state is RandomFailure,
         listener: (context, state) {
-          // Navigate to results on first-page search success
-          if (state is SearchSuccess && state.currentPage == 1) {
+          if (state is RandomSuccess) {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => BlocProvider.value(
                   value: context.read<SearchBloc>(),
-                  child: ResultsPage(
-                    results: state.results,
-                    keywords: state.keywords,
-                    nsfwEnabled: nsfwEnabled,
-                  ),
+                  child: MangaPage(manga: state.manga),
                 ),
               ),
             );
-          }
-          if (state is SearchFailure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
-          }
-          // Navigate to detail page on random success
-          if (state is RandomSuccess) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => MangaPage(manga: state.manga),
-              ),
-            );
-          }
-          if (state is RandomFailure) {
+          } else if (state is RandomFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -147,15 +126,19 @@ class _HomePageState extends State<HomePage> {
                           disabled: isLoading || isRandomLoading,
                           onPressed: () {
                             final keywords = textController.text.trim();
-                            if (keywords.isNotEmpty) {
-                              context.read<SearchBloc>().add(
-                                    SearchRequested(
-                                      keywords,
-                                      nsfwEnabled: nsfwEnabled,
-                                    ),
-                                  );
-                              textController.clear();
-                            }
+                            if (keywords.isEmpty) return;
+                            textController.clear();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BlocProvider.value(
+                                  value: context.read<SearchBloc>(),
+                                  child: ResultsPage(
+                                    keywords: keywords,
+                                    nsfwEnabled: nsfwEnabled,
+                                  ),
+                                ),
+                              ),
+                            );
                           },
                         ),
                         const SizedBox(height: 12),

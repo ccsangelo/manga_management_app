@@ -3,18 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:manga_recommendation_app/bloc/search_bloc.dart';
 import 'package:manga_recommendation_app/bloc/search_event.dart';
 import 'package:manga_recommendation_app/bloc/search_state.dart';
-import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/pages/manga_info.dart';
 
 // Paginated search results list
 class ResultsPage extends StatefulWidget {
-  final List<Manga> results;
   final String keywords;
   final bool nsfwEnabled;
 
   const ResultsPage({
     super.key,
-    required this.results,
     required this.keywords,
     this.nsfwEnabled = false,
   });
@@ -26,13 +23,19 @@ class ResultsPage extends StatefulWidget {
 class _ResultsPageState extends State<ResultsPage> {
   final TextEditingController _goToController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    context.read<SearchBloc>().add(
+          SearchRequested(widget.keywords, nsfwEnabled: widget.nsfwEnabled),
+        );
+  }
+
   void _goToPage(int page, String keywords, int lastPage) {
     if (page < 1 || page > lastPage) return;
-    context.read<SearchBloc>().add(PageRequested(
-          keywords,
-          page,
-          nsfwEnabled: widget.nsfwEnabled,
-        ));
+    context.read<SearchBloc>().add(
+          PageRequested(keywords, page, nsfwEnabled: widget.nsfwEnabled),
+        );
   }
 
   @override
@@ -55,6 +58,15 @@ class _ResultsPageState extends State<ResultsPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (state is SearchFailure) {
+            return Center(
+              child: Text(
+                state.message,
+                style: const TextStyle(color: Colors.grey),
+              ),
+            );
+          }
+
           if (state is! SearchSuccess) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -75,19 +87,21 @@ class _ResultsPageState extends State<ResultsPage> {
 
           return Column(
             children: [
-              // Manga list
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                   itemCount: results.length,
-                  separatorBuilder: (context2, index2) =>
+                  separatorBuilder: (_, _) =>
                       const Divider(color: Color(0xFF2A2A2A)),
                   itemBuilder: (context, index) {
                     final manga = results[index];
                     return ListTile(
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => MangaPage(manga: manga),
+                          builder: (_) => BlocProvider.value(
+                            value: context.read<SearchBloc>(),
+                            child: MangaPage(manga: manga),
+                          ),
                         ),
                       ),
                       leading: manga.imageUrl != null
@@ -96,7 +110,7 @@ class _ResultsPageState extends State<ResultsPage> {
                               width: 50,
                               height: 70,
                               fit: BoxFit.cover,
-                              errorBuilder: (ctx, err, stack) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 width: 50,
                                 height: 70,
                                 color: Colors.grey[800],
@@ -121,7 +135,6 @@ class _ResultsPageState extends State<ResultsPage> {
                   },
                 ),
               ),
-              // Pagination
               _buildPaginationBar(currentPage, lastPage, keywords),
             ],
           );
