@@ -3,20 +3,101 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:manga_recommendation_app/bloc/search_bloc.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/pages/results_page.dart';
+import 'package:manga_recommendation_app/services/manga_status_service.dart';
 
 // Detail page for displaying a single manga's full info
-class MangaPage extends StatelessWidget {
+class MangaPage extends StatefulWidget {
   final Manga manga;
 
   const MangaPage({super.key, required this.manga});
 
   @override
+  State<MangaPage> createState() => _MangaPageState();
+}
+
+class _MangaPageState extends State<MangaPage> {
+  String? _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = MangaStatusService.instance.getStatus(widget.manga.malId);
+  }
+
+  void _showStatusPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Set Status',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const Divider(color: Color(0xFF2A2A2A)),
+          ...MangaStatusService.statusOptions.map(
+            (status) => ListTile(
+              title: Text(status, style: const TextStyle(color: Colors.white)),
+              trailing: _status == status
+                  ? const Icon(Icons.check, color: Colors.deepPurple)
+                  : null,
+              onTap: () {
+                setState(() {
+                  _status = status;
+                  MangaStatusService.instance
+                      .setStatus(widget.manga.malId, status);
+                });
+                Navigator.pop(context);
+              },
+            ),
+          ),
+          if (_status != null)
+            ListTile(
+              title: const Text('Remove Status',
+                  style: TextStyle(color: Colors.redAccent)),
+              onTap: () {
+                setState(() {
+                  _status = null;
+                  MangaStatusService.instance
+                      .setStatus(widget.manga.malId, null);
+                });
+                Navigator.pop(context);
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(manga.title, overflow: TextOverflow.ellipsis),
+        title: Text(widget.manga.title, overflow: TextOverflow.ellipsis),
         backgroundColor: const Color(0xFF1E1E1E),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _status != null ? Icons.bookmark : Icons.bookmark_border,
+              color: _status != null ? Colors.deepPurple : Colors.white,
+            ),
+            tooltip: 'Set Status',
+            onPressed: _showStatusPicker,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -26,9 +107,9 @@ class MangaPage extends StatelessWidget {
             children: [
               // Cover image
               Center(
-                child: manga.imageUrl != null
+                child: widget.manga.imageUrl != null
                     ? Image.network(
-                        manga.imageUrl!,
+                        widget.manga.imageUrl!,
                         height: 300,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) => _placeholderImage(),
@@ -39,7 +120,7 @@ class MangaPage extends StatelessWidget {
 
               // Title
               Text(
-                manga.title,
+                widget.manga.title,
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -48,13 +129,33 @@ class MangaPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
 
+              // Status badge
+              if (_status != null) ...[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withAlpha(51),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: Colors.deepPurple.withAlpha(128), width: 1),
+                  ),
+                  child: Text(
+                    _status!,
+                    style: const TextStyle(
+                        color: Colors.deepPurple, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+
               // Score
               Row(
                 children: [
                   const Icon(Icons.star, color: Colors.amber, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    '${manga.score}',
+                    '${widget.manga.score}',
                     style: const TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 ],
@@ -62,17 +163,18 @@ class MangaPage extends StatelessWidget {
               const SizedBox(height: 16),
 
               // Tag sections
-              if (manga.genres.isNotEmpty)
-                _buildTagSection(context, 'Genres', manga.genres),
-              if (manga.themes.isNotEmpty)
-                _buildTagSection(context, 'Themes', manga.themes),
-              if (manga.demographics.isNotEmpty)
-                _buildTagSection(context, 'Demographics', manga.demographics),
-              if (manga.magazines.isNotEmpty)
-                _buildTagSection(context, 'Magazines', manga.magazines),
+              if (widget.manga.genres.isNotEmpty)
+                _buildTagSection(context, 'Genres', widget.manga.genres),
+              if (widget.manga.themes.isNotEmpty)
+                _buildTagSection(context, 'Themes', widget.manga.themes),
+              if (widget.manga.demographics.isNotEmpty)
+                _buildTagSection(
+                    context, 'Demographics', widget.manga.demographics),
+              if (widget.manga.magazines.isNotEmpty)
+                _buildTagSection(context, 'Magazines', widget.manga.magazines),
 
               // Synopsis
-              if (manga.synopsis.isNotEmpty) ...[
+              if (widget.manga.synopsis.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 const Text(
                   'Synopsis',
@@ -84,7 +186,7 @@ class MangaPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  manga.synopsis,
+                  widget.manga.synopsis,
                   style: const TextStyle(
                     color: Colors.grey,
                     fontSize: 14,

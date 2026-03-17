@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:manga_recommendation_app/bloc/search_bloc.dart';
 import 'package:manga_recommendation_app/bloc/search_event.dart';
 import 'package:manga_recommendation_app/bloc/search_state.dart';
+import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/pages/manga_info.dart';
+import 'package:manga_recommendation_app/services/manga_status_service.dart';
 
 // Paginated search results list
 class ResultsPage extends StatefulWidget {
@@ -22,6 +24,8 @@ class ResultsPage extends StatefulWidget {
 
 class _ResultsPageState extends State<ResultsPage> {
   final TextEditingController _goToController = TextEditingController();
+  bool _sortDescending = true;
+  final Set<String> _selectedStatuses = {};
 
   @override
   void initState() {
@@ -51,6 +55,13 @@ class _ResultsPageState extends State<ResultsPage> {
         title: const Text('Results'),
         backgroundColor: const Color(0xFF1E1E1E),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.tune),
+            tooltip: 'Sort & Filter',
+            onPressed: _showSortFilterSheet,
+          ),
+        ],
       ),
       body: BlocBuilder<SearchBloc, SearchState>(
         builder: (context, state) {
@@ -71,22 +82,37 @@ class _ResultsPageState extends State<ResultsPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final results = state.results;
           final currentPage = state.currentPage;
           final lastPage = state.lastPage;
           final keywords = state.keywords;
 
+          final results = _applyFilters(state.results);
+
           if (results.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
-                'No results found.',
-                style: TextStyle(color: Colors.grey),
+                state.results.isEmpty
+                    ? 'No results found.'
+                    : 'No manga match the current filter.',
+                style: const TextStyle(color: Colors.grey),
               ),
             );
           }
 
           return Column(
             children: [
+              if (_selectedStatuses.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  color: Colors.deepPurple.withAlpha(30),
+                  child: Text(
+                    'Filtering by: ${_selectedStatuses.join(', ')}',
+                    style: const TextStyle(
+                        color: Colors.deepPurple, fontSize: 12),
+                  ),
+                ),
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -95,15 +121,20 @@ class _ResultsPageState extends State<ResultsPage> {
                       const Divider(color: Color(0xFF2A2A2A)),
                   itemBuilder: (context, index) {
                     final manga = results[index];
+                    final mangaStatus =
+                        MangaStatusService.instance.getStatus(manga.malId);
                     return ListTile(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => BlocProvider.value(
-                            value: context.read<SearchBloc>(),
-                            child: MangaPage(manga: manga),
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => BlocProvider.value(
+                              value: context.read<SearchBloc>(),
+                              child: MangaPage(manga: manga),
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                        setState(() {}); // Refresh status shown in list
+                      },
                       leading: manga.imageUrl != null
                           ? Image.network(
                               manga.imageUrl!,
@@ -125,18 +156,183 @@ class _ResultsPageState extends State<ResultsPage> {
                         manga.title,
                         style: const TextStyle(color: Colors.white),
                       ),
-                      subtitle: manga.score > 0
-                          ? Text(
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (manga.score > 0)
+                            Text(
                               'Score: ${manga.score.toStringAsFixed(1)}',
                               style: const TextStyle(color: Colors.grey),
-                            )
-                          : null,
+                            ),
+                          if (mangaStatus != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.bookmark,
+                                      color: Colors.deepPurple, size: 13),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    mangaStatus,
+                                    style: const TextStyle(
+                                      color: Colors.deepPurple,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
                     );
                   },
                 ),
               ),
               _buildPaginationBar(currentPage, lastPage, keywords),
             ],
+          );
+        },
+      ),
+    );
+  }
+
+  // Applies current sort order and status filter to the results list
+  List<Manga> _applyFilters(List<Manga> source) {
+    var list = List<Manga>.from(source);
+    if (_selectedStatuses.isNotEmpty) {
+      list = list.where((m) {
+        final status = MangaStatusService.instance.getStatus(m.malId);
+        return status != null && _selectedStatuses.contains(status);
+      }).toList();
+    }
+    list.sort((a, b) => _sortDescending
+        ? b.score.compareTo(a.score)
+        : a.score.compareTo(b.score));
+    return list;
+  }
+
+  // Opens the sort & filter bottom sheet
+  void _showSortFilterSheet() {
+    bool tempDescending = _sortDescending;
+    final tempStatuses = Set<String>.from(_selectedStatuses);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Center(
+                  child: Text(
+                    'Sort & Filter',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Sort
+                const Text(
+                  'Sort by Score',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                RadioGroup<bool>(
+                  groupValue: tempDescending,
+                  onChanged: (v) => setSheetState(() => tempDescending = v ?? tempDescending),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      RadioListTile<bool>(
+                        value: true,
+                        activeColor: Colors.deepPurple,
+                        title: const Text('Descending',
+                            style: TextStyle(color: Colors.white)),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      RadioListTile<bool>(
+                        value: false,
+                        activeColor: Colors.deepPurple,
+                        title: const Text('Ascending',
+                            style: TextStyle(color: Colors.white)),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(color: Color(0xFF2A2A2A)),
+                const SizedBox(height: 4),
+
+                // Filter
+                const Text(
+                  'Filter by Status',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ...MangaStatusService.statusOptions.map((status) =>
+                    CheckboxListTile(
+                      value: tempStatuses.contains(status),
+                      activeColor: Colors.deepPurple,
+                      checkColor: Colors.white,
+                      title: Text(status,
+                          style: const TextStyle(color: Colors.white)),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      onChanged: (checked) => setSheetState(() {
+                        if (checked == true) {
+                          tempStatuses.add(status);
+                        } else {
+                          tempStatuses.remove(status);
+                        }
+                      }),
+                    )),
+                const SizedBox(height: 12),
+
+                // Apply
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _sortDescending = tempDescending;
+                        _selectedStatuses
+                          ..clear()
+                          ..addAll(tempStatuses);
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Apply'),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -184,7 +380,6 @@ class _ResultsPageState extends State<ResultsPage> {
               keyboardType: TextInputType.number,
               style: const TextStyle(color: Colors.white, fontSize: 12),
               decoration: InputDecoration(
-                hintText: '',
                 hintStyle: TextStyle(color: Colors.grey[600], fontSize: 11),
                 filled: true,
                 fillColor: const Color(0xFF2A2A2A),
