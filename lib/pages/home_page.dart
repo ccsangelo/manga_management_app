@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:manga_recommendation_app/bloc/auth_bloc.dart';
+import 'package:manga_recommendation_app/bloc/auth_event.dart';
 import 'package:manga_recommendation_app/bloc/search_bloc.dart';
 import 'package:manga_recommendation_app/bloc/search_event.dart';
 import 'package:manga_recommendation_app/bloc/search_state.dart';
@@ -15,14 +17,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late TextEditingController textController;
+  final textController = TextEditingController();
   bool nsfwEnabled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    textController = TextEditingController();
-  }
 
   @override
   void dispose() {
@@ -33,6 +29,15 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: () => context.read<AuthBloc>().add(LogoutEvent()),
+          ),
+        ],
+      ),
       body: BlocListener<SearchBloc, SearchState>(
         listenWhen: (_, state) => state is RandomSuccess || state is RandomFailure,
         listener: (context, state) {
