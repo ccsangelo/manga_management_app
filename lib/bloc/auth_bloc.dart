@@ -6,24 +6,31 @@ import 'package:manga_recommendation_app/services/auth_service.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthService authService;
 
-  AuthBloc({required this.authService}) : super(AuthUnauthenticated()) {
-    on<LoginEvent>(_onLoginEvent);
-    on<LogoutEvent>(_onLogoutEvent);
+  AuthBloc({required this.authService}) : super(AuthLoading()) {
+    on<CheckAuthEvent>(_onCheckAuth);
+    on<LoginEvent>(_onLogin);
+    on<LogoutEvent>(_onLogout);
   }
 
-  Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
+  Future<void> _onCheckAuth(CheckAuthEvent event, Emitter<AuthState> emit) async {
+    final token = await authService.getValidToken();
+    emit(token != null ? AuthAuthenticated(token: token) : AuthUnauthenticated());
+  }
+
+  Future<void> _onLogin(LoginEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      final success = await authService.login(event.username, event.password);
-      emit(success
-          ? AuthAuthenticated()
+      final token = await authService.login(event.username, event.password);
+      emit(token != null
+          ? AuthAuthenticated(token: token)
           : AuthError(message: 'Invalid username or password'));
     } catch (e) {
       emit(AuthError(message: 'An error occurred: ${e.toString()}'));
     }
   }
 
-  void _onLogoutEvent(LogoutEvent event, Emitter<AuthState> emit) {
+  Future<void> _onLogout(LogoutEvent event, Emitter<AuthState> emit) async {
+    await authService.logout();
     emit(AuthUnauthenticated());
   }
 }

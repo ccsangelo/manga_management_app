@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:manga_recommendation_app/bloc/auth_bloc.dart';
+import 'package:manga_recommendation_app/bloc/auth_event.dart';
 import 'package:manga_recommendation_app/bloc/auth_state.dart';
 import 'package:manga_recommendation_app/bloc/search_bloc.dart';
 import 'package:manga_recommendation_app/pages/home_page.dart';
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => AuthBloc(authService: AuthService()),
+          create: (_) => AuthBloc(authService: AuthService())..add(CheckAuthEvent()),
         ),
         BlocProvider(
           create: (_) => SearchBloc(mangaService: MangaService()),

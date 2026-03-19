@@ -1,5 +1,7 @@
 abstract class AuthEvent {}
 
+class CheckAuthEvent extends AuthEvent {}
+
 class LoginEvent extends AuthEvent {
   final String username;
   final String password;

@@ -1,9 +1,37 @@
-class AuthService {
-  static const String _adminUsername = 'admin123';
-  static const String _adminPassword = 'admin123';
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:manga_recommendation_app/config/app_config.dart';
 
-  Future<bool> login(String username, String password) async {
+class AuthService {
+  static const _adminUsername = 'admin123';
+  static const _adminPassword = 'admin123';
+  static const _tokenKey = 'auth_token';
+
+  final _storage = const FlutterSecureStorage();
+
+  Future<String?> login(String username, String password) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return username == _adminUsername && password == _adminPassword;
+    if (username != _adminUsername || password != _adminPassword) return null;
+
+    final token = JWT({'username': username}).sign(
+      SecretKey(AppConfig.jwtSecret),
+      expiresIn: const Duration(hours: 1),
+    );
+    await _storage.write(key: _tokenKey, value: token);
+    return token;
   }
+
+  Future<String?> getValidToken() async {
+    final token = await _storage.read(key: _tokenKey);
+    if (token == null) return null;
+    try {
+      JWT.verify(token, SecretKey(AppConfig.jwtSecret));
+      return token;
+    } catch (_) {
+      await _storage.delete(key: _tokenKey);
+      return null;
+    }
+  }
+
+  Future<void> logout() => _storage.delete(key: _tokenKey);
 }
