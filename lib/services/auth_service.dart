@@ -4,15 +4,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:manga_recommendation_app/config/app_config.dart';
 
 class AuthService {
-  static const _adminUsername = 'admin123';
-  static const _adminPassword = 'admin123';
   static const _tokenKey = 'auth_token';
 
   final _storage = const FlutterSecureStorage();
 
   Future<Either<String, String>> login(String username, String password) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    if (username != _adminUsername || password != _adminPassword) {
+    if (username != AppConfig.adminUsername || password != AppConfig.adminPassword) {
       return const Left('Invalid username or password');
     }
 
