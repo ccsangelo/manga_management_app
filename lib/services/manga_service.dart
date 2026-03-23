@@ -1,37 +1,23 @@
+import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:manga_recommendation_app/config/app_config.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/models/manga_search_result.dart';
 
-// Exception for search errors
-class SearchFailureException implements Exception {
-  final String message;
-  const SearchFailureException(this.message);
-  @override
-  String toString() => message;
-}
-
-// Exception for random fetch errors
-class RandomFetchException implements Exception {
-  final String message;
-  const RandomFetchException(this.message);
-  @override
-  String toString() => message;
-}
-
-// Jikan API service
+// Jikan API service with caching and Either-based error handling
 class MangaService {
   static const _nsfwGenres = ['ecchi', 'erotica', 'hentai'];
   static const _maxRandomRetries = 5;
+  static const _maxCacheSize = 50;
 
   String get _baseUrl => AppConfig.baseUrl;
 
   final Dio _dio;
   Map<String, int>? _genreMap;
+  final Map<String, MangaSearchResult> _searchCache = {};
 
   MangaService({Dio? dio}) : _dio = dio ?? Dio();
 
-  // Maps a DioException to a user-friendly message
   String _dioErrorMessage(DioException e) {
     return switch (e.type) {
       DioExceptionType.connectionTimeout =>
@@ -46,8 +32,8 @@ class MangaService {
   }
 
   // Fetches and caches genre/theme ID mappings from Jikan
-  Future<Map<String, int>> _getGenreMap() async {
-    if (_genreMap != null) return _genreMap!;
+  Future<Either<String, Map<String, int>>> _getGenreMap() async {
+    if (_genreMap != null) return Right(_genreMap!);
 
     try {
       final response =
@@ -58,20 +44,23 @@ class MangaService {
         for (final item in items)
           (item['name'] as String).toLowerCase(): item['mal_id'] as int,
       };
+      return Right(_genreMap!);
     } on DioException catch (e) {
-      _genreMap = {};
-      throw SearchFailureException(_dioErrorMessage(e));
+      return Left(_dioErrorMessage(e));
     }
-
-    return _genreMap!;
   }
 
   // Searches manga by comma-separated genre/theme keywords
-  Future<MangaSearchResult> searchManga(
+  Future<Either<String, MangaSearchResult>> searchManga(
     String keywords, {
     int page = 1,
     bool nsfwEnabled = false,
+    bool sortDescending = true,
   }) async {
+    final cacheKey = '${keywords}_${page}_${nsfwEnabled}_$sortDescending';
+    final cached = _searchCache[cacheKey];
+    if (cached != null) return Right(cached);
+
     final keywordList = keywords
         .split(',')
         .map((k) => k.trim().toLowerCase())
@@ -79,20 +68,19 @@ class MangaService {
         .toList();
 
     if (keywordList.isEmpty) {
-      return const MangaSearchResult(
+      return const Right(MangaSearchResult(
         results: [],
         currentPage: 1,
         lastPage: 1,
         hasNextPage: false,
-      );
+      ));
     }
 
-    final Map<String, int> genreMap;
-    try {
-      genreMap = await _getGenreMap();
-    } on SearchFailureException {
-      rethrow;
+    final genreResult = await _getGenreMap();
+    if (genreResult.isLeft()) {
+      return Left(genreResult.fold((l) => l, (_) => ''));
     }
+    final genreMap = genreResult.getOrElse(() => {});
 
     final genreIds = <int>{};
     for (final keyword in keywordList) {
@@ -101,23 +89,22 @@ class MangaService {
     }
 
     if (genreIds.isEmpty) {
-      return const MangaSearchResult(
+      return const Right(MangaSearchResult(
         results: [],
         currentPage: 1,
         lastPage: 1,
         hasNextPage: false,
-      );
+      ));
     }
 
     final queryParams = <String, dynamic>{
       'limit': '25',
       'page': page.toString(),
       'order_by': 'score',
-      'sort': 'desc',
+      'sort': sortDescending ? 'desc' : 'asc',
       'genres': genreIds.join(','),
     };
 
-    // NSFW filter
     if (!nsfwEnabled) queryParams['sfw'] = 'true';
 
     try {
@@ -134,19 +121,26 @@ class MangaService {
           .map((item) => Manga.fromJson(item as Map<String, dynamic>))
           .toList();
 
-      // Remove NSFW results
       if (!nsfwEnabled) {
         results = results.where((manga) => !_isNsfw(manga)).toList();
       }
 
-      return MangaSearchResult(
+      final searchResult = MangaSearchResult(
         results: results,
         currentPage: page,
         lastPage: pagination?['last_visible_page'] as int? ?? 1,
         hasNextPage: pagination?['has_next_page'] as bool? ?? false,
       );
+
+      // Evict oldest entry if cache is full
+      if (_searchCache.length >= _maxCacheSize) {
+        _searchCache.remove(_searchCache.keys.first);
+      }
+      _searchCache[cacheKey] = searchResult;
+
+      return Right(searchResult);
     } on DioException catch (e) {
-      throw SearchFailureException(_dioErrorMessage(e));
+      return Left(_dioErrorMessage(e));
     }
   }
 
@@ -176,26 +170,25 @@ class MangaService {
   }
 
   // Fetches a random manga
-  Future<Manga> getRandom({bool nsfwEnabled = false}) async {
+  Future<Either<String, Manga>> getRandom({bool nsfwEnabled = false}) async {
     for (var attempt = 0; attempt < _maxRandomRetries; attempt++) {
-      // Delay between retries
       if (attempt > 0) {
         await Future.delayed(const Duration(seconds: 1));
       }
 
       try {
-        final response = await _dio
-            .get<Map<String, dynamic>>('$_baseUrl/random/manga');
-        final manga = Manga.fromJson(
-            response.data!['data'] as Map<String, dynamic>);
+        final response =
+            await _dio.get<Map<String, dynamic>>('$_baseUrl/random/manga');
+        final manga =
+            Manga.fromJson(response.data!['data'] as Map<String, dynamic>);
 
-        if (nsfwEnabled || !_isNsfw(manga)) return manga;
+        if (nsfwEnabled || !_isNsfw(manga)) return Right(manga);
       } on DioException catch (e) {
-        throw RandomFetchException(_dioErrorMessage(e));
+        return Left(_dioErrorMessage(e));
       }
     }
 
-    throw const RandomFetchException(
+    return Left(
         'Could not find a non-NSFW manga after $_maxRandomRetries attempts. Please try again.');
   }
 }

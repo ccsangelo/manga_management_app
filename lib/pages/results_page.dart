@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/bloc/search_bloc.dart';
 import 'package:manga_recommendation_app/bloc/search_event.dart';
 import 'package:manga_recommendation_app/bloc/search_state.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
-import 'package:manga_recommendation_app/pages/manga_info.dart';
 import 'package:manga_recommendation_app/services/manga_status_service.dart';
 
-// Paginated search results list
 class ResultsPage extends StatefulWidget {
   final String keywords;
   final bool nsfwEnabled;
@@ -23,22 +22,19 @@ class ResultsPage extends StatefulWidget {
 }
 
 class _ResultsPageState extends State<ResultsPage> {
-  final TextEditingController _goToController = TextEditingController();
+  final _goToController = TextEditingController();
   bool _sortDescending = true;
   final Set<String> _selectedStatuses = {};
-
-  @override
-  void initState() {
-    super.initState();
-    context.read<SearchBloc>().add(
-          SearchRequested(widget.keywords, nsfwEnabled: widget.nsfwEnabled),
-        );
-  }
 
   void _goToPage(int page, String keywords, int lastPage) {
     if (page < 1 || page > lastPage) return;
     context.read<SearchBloc>().add(
-          PageRequested(keywords, page, nsfwEnabled: widget.nsfwEnabled),
+          SearchRequested(
+            keywords,
+            page: page,
+            nsfwEnabled: widget.nsfwEnabled,
+            sortDescending: _sortDescending,
+          ),
         );
   }
 
@@ -82,11 +78,7 @@ class _ResultsPageState extends State<ResultsPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final currentPage = state.currentPage;
-          final lastPage = state.lastPage;
-          final keywords = state.keywords;
-
-          final results = _applyFilters(state.results);
+          final results = _applyStatusFilter(state.results);
 
           if (results.isEmpty) {
             return Center(
@@ -104,13 +96,13 @@ class _ResultsPageState extends State<ResultsPage> {
               if (_selectedStatuses.isNotEmpty)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   color: Colors.deepPurple.withAlpha(30),
                   child: Text(
                     'Filtering by: ${_selectedStatuses.join(', ')}',
-                    style: const TextStyle(
-                        color: Colors.deepPurple, fontSize: 12),
+                    style:
+                        const TextStyle(color: Colors.deepPurple, fontSize: 12),
                   ),
                 ),
               Expanded(
@@ -119,78 +111,12 @@ class _ResultsPageState extends State<ResultsPage> {
                   itemCount: results.length,
                   separatorBuilder: (_, _) =>
                       const Divider(color: Color(0xFF2A2A2A)),
-                  itemBuilder: (context, index) {
-                    final manga = results[index];
-                    final mangaStatus =
-                        MangaStatusService.instance.getStatus(manga.malId);
-                    return ListTile(
-                      onTap: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => BlocProvider.value(
-                              value: context.read<SearchBloc>(),
-                              child: MangaPage(manga: manga),
-                            ),
-                          ),
-                        );
-                        setState(() {}); // Refresh status shown in list
-                      },
-                      leading: manga.imageUrl != null
-                          ? Image.network(
-                              manga.imageUrl!,
-                              width: 50,
-                              height: 70,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => Container(
-                                width: 50,
-                                height: 70,
-                                color: Colors.grey[800],
-                                child: const Icon(
-                                  Icons.image_not_supported,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            )
-                          : null,
-                      title: Text(
-                        manga.title,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (manga.score > 0)
-                            Text(
-                              'Score: ${manga.score.toStringAsFixed(1)}',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                          if (mangaStatus != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.bookmark,
-                                      color: Colors.deepPurple, size: 13),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    mangaStatus,
-                                    style: const TextStyle(
-                                      color: Colors.deepPurple,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
+                  itemBuilder: (context, index) =>
+                      _buildMangaTile(results[index]),
                 ),
               ),
-              _buildPaginationBar(currentPage, lastPage, keywords),
+              _buildPaginationBar(
+                  state.currentPage, state.lastPage, state.keywords),
             ],
           );
         },
@@ -198,22 +124,68 @@ class _ResultsPageState extends State<ResultsPage> {
     );
   }
 
-  // Applies current sort order and status filter to the results list
-  List<Manga> _applyFilters(List<Manga> source) {
-    var list = List<Manga>.from(source);
-    if (_selectedStatuses.isNotEmpty) {
-      list = list.where((m) {
-        final status = MangaStatusService.instance.getStatus(m.malId);
-        return status != null && _selectedStatuses.contains(status);
-      }).toList();
-    }
-    list.sort((a, b) => _sortDescending
-        ? b.score.compareTo(a.score)
-        : a.score.compareTo(b.score));
-    return list;
+  Widget _buildMangaTile(Manga manga) {
+    final mangaStatus = MangaStatusService.instance.getStatus(manga.malId);
+    return ListTile(
+      onTap: () async {
+        await context.push('/manga', extra: manga);
+        if (mounted) setState(() {}); // Refresh status shown in list
+      },
+      leading: manga.imageUrl != null
+          ? Image.network(
+              manga.imageUrl!,
+              width: 50,
+              height: 70,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                width: 50,
+                height: 70,
+                color: Colors.grey[800],
+                child:
+                    const Icon(Icons.image_not_supported, color: Colors.grey),
+              ),
+            )
+          : null,
+      title: Text(manga.title, style: const TextStyle(color: Colors.white)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (manga.score > 0)
+            Text(
+              'Score: ${manga.score.toStringAsFixed(1)}',
+              style: const TextStyle(color: Colors.grey),
+            ),
+          if (mangaStatus != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.bookmark, color: Colors.deepPurple, size: 13),
+                  const SizedBox(width: 4),
+                  Text(
+                    mangaStatus,
+                    style: const TextStyle(
+                        color: Colors.deepPurple, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
-  // Opens the sort & filter bottom sheet
+  // Applies status filter only (sort is handled by the API)
+  List<Manga> _applyStatusFilter(List<Manga> source) {
+    if (_selectedStatuses.isEmpty) return source;
+    return source.where((m) {
+      final status = MangaStatusService.instance.getStatus(m.malId);
+      return status != null && _selectedStatuses.contains(status);
+    }).toList();
+  }
+
   void _showSortFilterSheet() {
     bool tempDescending = _sortDescending;
     final tempStatuses = Set<String>.from(_selectedStatuses);
@@ -245,7 +217,6 @@ class _ResultsPageState extends State<ResultsPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Sort
                 const Text(
                   'Sort by Score',
                   style: TextStyle(
@@ -258,7 +229,8 @@ class _ResultsPageState extends State<ResultsPage> {
                 const SizedBox(height: 4),
                 RadioGroup<bool>(
                   groupValue: tempDescending,
-                  onChanged: (v) => setSheetState(() => tempDescending = v ?? tempDescending),
+                  onChanged: (v) =>
+                      setSheetState(() => tempDescending = v ?? tempDescending),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -282,7 +254,6 @@ class _ResultsPageState extends State<ResultsPage> {
                 const Divider(color: Color(0xFF2A2A2A)),
                 const SizedBox(height: 4),
 
-                // Filter
                 const Text(
                   'Filter by Status',
                   style: TextStyle(
@@ -312,14 +283,13 @@ class _ResultsPageState extends State<ResultsPage> {
                     )),
                 const SizedBox(height: 12),
 
-                // Apply
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                    ),
+                        backgroundColor: Colors.deepPurple),
                     onPressed: () {
+                      final sortChanged = _sortDescending != tempDescending;
                       setState(() {
                         _sortDescending = tempDescending;
                         _selectedStatuses
@@ -327,6 +297,20 @@ class _ResultsPageState extends State<ResultsPage> {
                           ..addAll(tempStatuses);
                       });
                       Navigator.pop(ctx);
+                      // Re-fetch from API with new sort order
+                      if (sortChanged) {
+                        final state = context.read<SearchBloc>().state;
+                        final keywords = state is SearchSuccess
+                            ? state.keywords
+                            : widget.keywords;
+                        context.read<SearchBloc>().add(
+                              SearchRequested(
+                                keywords,
+                                nsfwEnabled: widget.nsfwEnabled,
+                                sortDescending: _sortDescending,
+                              ),
+                            );
+                      }
                     },
                     child: const Text('Apply'),
                   ),
@@ -339,7 +323,6 @@ class _ResultsPageState extends State<ResultsPage> {
     );
   }
 
-  // Bottom pagination bar with page buttons and go-to input
   Widget _buildPaginationBar(int currentPage, int lastPage, String keywords) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
@@ -350,7 +333,6 @@ class _ResultsPageState extends State<ResultsPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Previous page
           _navButton(
             icon: Icons.chevron_left,
             onPressed: currentPage > 1
@@ -360,7 +342,6 @@ class _ResultsPageState extends State<ResultsPage> {
           const SizedBox(width: 4),
           ..._buildPageButtons(currentPage, lastPage, keywords),
           const SizedBox(width: 4),
-          // Next page
           _navButton(
             icon: Icons.chevron_right,
             onPressed: currentPage < lastPage
@@ -368,7 +349,6 @@ class _ResultsPageState extends State<ResultsPage> {
                 : null,
           ),
           const SizedBox(width: 12),
-          // Go-to page input
           const Text(
               'Go to', style: TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(width: 6),
@@ -404,11 +384,9 @@ class _ResultsPageState extends State<ResultsPage> {
     );
   }
 
-  // Generates numbered page buttons with ellipsis gaps
   List<Widget> _buildPageButtons(
       int currentPage, int lastPage, String keywords) {
     final pages = <int>{1, lastPage};
-
     for (var i = currentPage - 1; i <= currentPage + 1; i++) {
       if (i >= 1 && i <= lastPage) pages.add(i);
     }
@@ -417,7 +395,6 @@ class _ResultsPageState extends State<ResultsPage> {
     final widgets = <Widget>[];
 
     for (var i = 0; i < sortedPages.length; i++) {
-      // Ellipsis for gaps between page numbers
       if (i > 0 && sortedPages[i] - sortedPages[i - 1] > 1) {
         widgets.add(
           const Padding(
@@ -458,7 +435,6 @@ class _ResultsPageState extends State<ResultsPage> {
     return widgets;
   }
 
-  // Navigation arrow button (previous/next)
   Widget _navButton({
     required IconData icon,
     required VoidCallback? onPressed,

@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:manga_recommendation_app/bloc/search_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
-import 'package:manga_recommendation_app/pages/results_page.dart';
 import 'package:manga_recommendation_app/services/manga_status_service.dart';
 
-// Detail page for displaying a single manga's full info
 class MangaPage extends StatefulWidget {
   final Manga manga;
 
@@ -105,7 +102,6 @@ class _MangaPageState extends State<MangaPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cover image
               Center(
                 child: widget.manga.imageUrl != null
                     ? Image.network(
@@ -118,7 +114,6 @@ class _MangaPageState extends State<MangaPage> {
               ),
               const SizedBox(height: 24),
 
-              // Title
               Text(
                 widget.manga.title,
                 style: const TextStyle(
@@ -129,7 +124,6 @@ class _MangaPageState extends State<MangaPage> {
               ),
               const SizedBox(height: 8),
 
-              // Status badge
               if (_status != null) ...[
                 Container(
                   padding:
@@ -149,7 +143,6 @@ class _MangaPageState extends State<MangaPage> {
                 const SizedBox(height: 8),
               ],
 
-              // Score
               Row(
                 children: [
                   const Icon(Icons.star, color: Colors.amber, size: 20),
@@ -162,18 +155,15 @@ class _MangaPageState extends State<MangaPage> {
               ),
               const SizedBox(height: 16),
 
-              // Tag sections
               if (widget.manga.genres.isNotEmpty)
-                _buildTagSection(context, 'Genres', widget.manga.genres),
+                _buildTagSection('Genres', widget.manga.genres),
               if (widget.manga.themes.isNotEmpty)
-                _buildTagSection(context, 'Themes', widget.manga.themes),
+                _buildTagSection('Themes', widget.manga.themes),
               if (widget.manga.demographics.isNotEmpty)
-                _buildTagSection(
-                    context, 'Demographics', widget.manga.demographics),
+                _buildTagSection('Demographics', widget.manga.demographics),
               if (widget.manga.magazines.isNotEmpty)
-                _buildTagSection(context, 'Magazines', widget.manga.magazines),
+                _buildTagSection('Magazines', widget.manga.magazines),
 
-              // Synopsis
               if (widget.manga.synopsis.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 const Text(
@@ -201,7 +191,6 @@ class _MangaPageState extends State<MangaPage> {
     );
   }
 
-  // Placeholder for missing cover images
   Widget _placeholderImage() {
     return Container(
       height: 300,
@@ -210,8 +199,7 @@ class _MangaPageState extends State<MangaPage> {
     );
   }
 
-  // Builds a labeled section with tag chips
-  Widget _buildTagSection(BuildContext context, String label, List<String> tags) {
+  Widget _buildTagSection(String label, List<String> tags) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
@@ -231,7 +219,10 @@ class _MangaPageState extends State<MangaPage> {
             runSpacing: 8,
             children: tags
                 .map((tag) => GestureDetector(
-                      onTap: () => _searchByTag(context, tag),
+                      onTap: () => context.push('/results', extra: {
+                        'keywords': tag,
+                        'nsfwEnabled': false,
+                      }),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -249,18 +240,6 @@ class _MangaPageState extends State<MangaPage> {
                 .toList(),
           ),
         ],
-      ),
-    );
-  }
-
-  // Navigates to results page filtered by the tapped tag
-  void _searchByTag(BuildContext context, String tag) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: context.read<SearchBloc>(),
-          child: ResultsPage(keywords: tag),
-        ),
       ),
     );
   }

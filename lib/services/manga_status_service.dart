@@ -1,9 +1,12 @@
-// In-memory store for user-assigned reading statuses per manga ID
+import 'package:hive_flutter/hive_flutter.dart';
+
+// Hive-backed persistent store for user-assigned reading statuses
 class MangaStatusService {
   MangaStatusService._();
   static final MangaStatusService instance = MangaStatusService._();
 
-  final Map<int, String> _statuses = {};
+  static const _boxName = 'manga_statuses';
+  late final Box<String> _box;
 
   static const List<String> statusOptions = [
     'Reading',
@@ -13,13 +16,18 @@ class MangaStatusService {
     'Want to Read',
   ];
 
-  String? getStatus(int malId) => _statuses[malId];
+  static Future<void> init() async {
+    instance._box = await Hive.openBox<String>(_boxName);
+  }
+
+  String? getStatus(int malId) => _box.get(malId.toString());
 
   void setStatus(int malId, String? status) {
+    final key = malId.toString();
     if (status == null) {
-      _statuses.remove(malId);
+      _box.delete(key);
     } else {
-      _statuses[malId] = status;
+      _box.put(key, status);
     }
   }
 }

@@ -19,14 +19,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onLogin(LoginEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
-    try {
-      final token = await authService.login(event.username, event.password);
-      emit(token != null
-          ? AuthAuthenticated(token: token)
-          : AuthError(message: 'Invalid username or password'));
-    } catch (e) {
-      emit(AuthError(message: 'An error occurred: ${e.toString()}'));
-    }
+    final result = await authService.login(event.username, event.password);
+    emit(result.fold(
+      (error) => AuthError(message: error),
+      (token) => AuthAuthenticated(token: token),
+    ));
   }
 
   Future<void> _onLogout(LogoutEvent event, Emitter<AuthState> emit) async {

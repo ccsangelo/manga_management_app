@@ -23,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _handleLogin(BuildContext context) {
+  void _handleLogin() {
     if (_formKey.currentState!.validate()) {
       context.read<AuthBloc>().add(
             LoginEvent(
@@ -55,10 +55,7 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 48),
                   const Text(
                     'Login',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 32),
                   TextFormField(
@@ -71,12 +68,8 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       prefixIcon: const Icon(Icons.person),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Username is required';
-                      }
-                      return null;
-                    },
+                    validator: (value) =>
+                        (value == null || value.isEmpty) ? 'Username is required' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -90,12 +83,9 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       prefixIcon: const Icon(Icons.lock),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Password is required';
-                      }
-                      return null;
-                    },
+                    validator: (value) =>
+                        (value == null || value.isEmpty) ? 'Password is required' : null,
+                    onFieldSubmitted: (_) => _handleLogin(),
                   ),
                   const SizedBox(height: 32),
                   BlocBuilder<AuthBloc, AuthState>(
@@ -106,21 +96,17 @@ class _LoginPageState extends State<LoginPage> {
                             width: double.infinity,
                             height: 48,
                             child: ElevatedButton(
-                              onPressed: state is AuthLoading
-                                  ? null
-                                  : () => _handleLogin(context),
+                              onPressed:
+                                  state is AuthLoading ? null : _handleLogin,
                               child: state is AuthLoading
                                   ? const SizedBox(
                                       height: 24,
                                       width: 24,
                                       child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
+                                          strokeWidth: 2),
                                     )
-                                  : const Text(
-                                      'Login',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
+                                  : const Text('Login',
+                                      style: TextStyle(fontSize: 16)),
                             ),
                           ),
                           if (state is AuthError)
@@ -129,7 +115,7 @@ class _LoginPageState extends State<LoginPage> {
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.1),
+                                  color: Colors.red.withAlpha(25),
                                   border: Border.all(color: Colors.red),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
