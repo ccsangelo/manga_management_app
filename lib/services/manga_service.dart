@@ -1,22 +1,104 @@
+import 'dart:convert';
+
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:manga_recommendation_app/config/app_config.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/models/manga_search_result.dart';
 
-// Jikan API service with caching and Either-based error handling
+// Jikan API service with Hive-backed caching and Either-based error handling
 class MangaService {
   static const _nsfwGenres = ['ecchi', 'erotica', 'hentai'];
   static const _maxRandomRetries = 5;
   static const _maxCacheSize = 50;
+  static const _searchCacheBoxName = 'search_cache';
+  static const _cacheDuration = Duration(hours: 1);
 
   String get _baseUrl => AppConfig.baseUrl;
 
   final Dio _dio;
   Map<String, int>? _genreMap;
-  final Map<String, MangaSearchResult> _searchCache = {};
+  static late Box<String> _cacheBox;
 
   MangaService({Dio? dio}) : _dio = dio ?? Dio();
+
+  static Future<void> init() async {
+    _cacheBox = await Hive.openBox<String>(_searchCacheBoxName);
+  }
+
+  // Clears one cache entry by key, or all entries if no key is given.
+  Future<void> invalidateSearchCache({String? cacheKey}) async {
+    if (cacheKey != null) {
+      await _cacheBox.delete(cacheKey);
+    } else {
+      await _cacheBox.clear();
+    }
+  }
+
+  MangaSearchResult? _getCachedResult(String cacheKey) {
+    final raw = _cacheBox.get(cacheKey);
+    if (raw == null) return null;
+
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final cachedAt = DateTime.fromMillisecondsSinceEpoch(map['cachedAt'] as int);
+
+      if (DateTime.now().difference(cachedAt) > _cacheDuration) {
+        _cacheBox.delete(cacheKey);
+        return null;
+      }
+
+      return MangaSearchResult(
+        currentPage: map['currentPage'] as int,
+        lastPage: map['lastPage'] as int,
+        hasNextPage: map['hasNextPage'] as bool,
+        results: (map['results'] as List<dynamic>)
+            .map((e) => _mangaFromMap(e as Map<String, dynamic>))
+            .toList(),
+      );
+    } catch (_) {
+      _cacheBox.delete(cacheKey);
+      return null;
+    }
+  }
+
+  Future<void> _putCachedResult(String cacheKey, MangaSearchResult result) async {
+    if (_cacheBox.length >= _maxCacheSize) {
+      await _cacheBox.delete(_cacheBox.keys.first);
+    }
+    await _cacheBox.put(cacheKey, jsonEncode({
+      'cachedAt': DateTime.now().millisecondsSinceEpoch,
+      'currentPage': result.currentPage,
+      'lastPage': result.lastPage,
+      'hasNextPage': result.hasNextPage,
+      'results': result.results.map(_mangaToMap).toList(),
+    }));
+  }
+
+  Map<String, dynamic> _mangaToMap(Manga manga) => {
+        'mal_id': manga.malId,
+        'title': manga.title,
+        'genres': manga.genres,
+        'themes': manga.themes,
+        'demographics': manga.demographics,
+        'magazines': manga.magazines,
+        'synopsis': manga.synopsis,
+        'imageUrl': manga.imageUrl,
+        'score': manga.score,
+      };
+
+  Manga _mangaFromMap(Map<String, dynamic> json) => Manga(
+        malId: json['mal_id'] as int,
+        title: json['title'] as String,
+        genres: List<String>.from(json['genres'] as List),
+        themes: List<String>.from(json['themes'] as List),
+        demographics: List<String>.from(json['demographics'] as List),
+        magazines: List<String>.from(json['magazines'] as List),
+        synopsis: json['synopsis'] as String? ?? '',
+        imageUrl: json['imageUrl'] as String?,
+        score: (json['score'] as num?)?.toDouble() ?? 0.0,
+      );
 
   String _dioErrorMessage(DioException e) {
     return switch (e.type) {
@@ -58,7 +140,7 @@ class MangaService {
     bool sortDescending = true,
   }) async {
     final cacheKey = '${keywords}_${page}_${nsfwEnabled}_$sortDescending';
-    final cached = _searchCache[cacheKey];
+    final cached = _getCachedResult(cacheKey);
     if (cached != null) return Right(cached);
 
     final keywordList = keywords
@@ -132,11 +214,7 @@ class MangaService {
         hasNextPage: pagination?['has_next_page'] as bool? ?? false,
       );
 
-      // Evict oldest entry if cache is full
-      if (_searchCache.length >= _maxCacheSize) {
-        _searchCache.remove(_searchCache.keys.first);
-      }
-      _searchCache[cacheKey] = searchResult;
+      await _putCachedResult(cacheKey, searchResult);
 
       return Right(searchResult);
     } on DioException catch (e) {

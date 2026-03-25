@@ -15,6 +15,7 @@ void main() async {
   await dotenv.load(fileName: '.env');
   await Hive.initFlutter();
   await MangaStatusService.init();
+  await MangaService.init();
   runApp(const MyApp());
 }
 
