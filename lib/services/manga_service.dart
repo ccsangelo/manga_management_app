@@ -25,6 +25,28 @@ class MangaService {
 
   static Future<void> init() async {
     _cacheBox = await Hive.openBox<String>(_searchCacheBoxName);
+    _removeExpiredEntries();
+  }
+
+  static void _removeExpiredEntries() {
+    final keysToDelete = <dynamic>[];
+    for (final key in _cacheBox.keys) {
+      final raw = _cacheBox.get(key);
+      if (raw == null) continue;
+      try {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        final cachedAt =
+            DateTime.fromMillisecondsSinceEpoch(map['cachedAt'] as int);
+        if (DateTime.now().difference(cachedAt) > _cacheDuration) {
+          keysToDelete.add(key);
+        }
+      } catch (_) {
+        keysToDelete.add(key);
+      }
+    }
+    for (final key in keysToDelete) {
+      _cacheBox.delete(key);
+    }
   }
 
   // Clears one cache entry by key, or all entries if no key is given.
@@ -54,7 +76,7 @@ class MangaService {
         lastPage: map['lastPage'] as int,
         hasNextPage: map['hasNextPage'] as bool,
         results: (map['results'] as List<dynamic>)
-            .map((e) => _mangaFromMap(e as Map<String, dynamic>))
+            .map((e) => mangaFromCacheMap(e as Map<String, dynamic>))
             .toList(),
       );
     } catch (_) {
@@ -72,33 +94,9 @@ class MangaService {
       'currentPage': result.currentPage,
       'lastPage': result.lastPage,
       'hasNextPage': result.hasNextPage,
-      'results': result.results.map(_mangaToMap).toList(),
+      'results': result.results.map(mangaToCacheMap).toList(),
     }));
   }
-
-  Map<String, dynamic> _mangaToMap(Manga manga) => {
-        'mal_id': manga.malId,
-        'title': manga.title,
-        'genres': manga.genres,
-        'themes': manga.themes,
-        'demographics': manga.demographics,
-        'magazines': manga.magazines,
-        'synopsis': manga.synopsis,
-        'imageUrl': manga.imageUrl,
-        'score': manga.score,
-      };
-
-  Manga _mangaFromMap(Map<String, dynamic> json) => Manga(
-        malId: json['mal_id'] as int,
-        title: json['title'] as String,
-        genres: List<String>.from(json['genres'] as List),
-        themes: List<String>.from(json['themes'] as List),
-        demographics: List<String>.from(json['demographics'] as List),
-        magazines: List<String>.from(json['magazines'] as List),
-        synopsis: json['synopsis'] as String? ?? '',
-        imageUrl: json['imageUrl'] as String?,
-        score: (json['score'] as num?)?.toDouble() ?? 0.0,
-      );
 
   String _dioErrorMessage(DioException e) {
     return switch (e.type) {

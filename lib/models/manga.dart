@@ -31,3 +31,28 @@ class Manga with _$Manga {
 
   factory Manga.fromJson(Map<String, dynamic> json) => _$MangaFromJson(json);
 }
+
+// Cache serialization (flat format, unlike API's nested JSON)
+Map<String, dynamic> mangaToCacheMap(Manga manga) => {
+      'mal_id': manga.malId,
+      'title': manga.title,
+      'genres': manga.genres,
+      'themes': manga.themes,
+      'demographics': manga.demographics,
+      'magazines': manga.magazines,
+      'synopsis': manga.synopsis,
+      'imageUrl': manga.imageUrl,
+      'score': manga.score,
+    };
+
+Manga mangaFromCacheMap(Map<String, dynamic> json) => Manga(
+      malId: json['mal_id'] as int,
+      title: json['title'] as String,
+      genres: List<String>.from(json['genres'] as List),
+      themes: List<String>.from(json['themes'] as List),
+      demographics: List<String>.from(json['demographics'] as List),
+      magazines: List<String>.from(json['magazines'] as List),
+      synopsis: json['synopsis'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String?,
+      score: (json['score'] as num?)?.toDouble() ?? 0.0,
+    );

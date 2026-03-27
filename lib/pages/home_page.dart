@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/bloc/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth_event.dart';
+import 'package:manga_recommendation_app/bloc/auth_state.dart';
 import 'package:manga_recommendation_app/services/manga_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -51,89 +52,98 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () => context.read<AuthBloc>().add(LogoutEvent()),
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (_, state) =>
+          state is AuthAuthenticated && state.sessionTakenOver,
+      listener: (context, _) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'A new login was detected. Your previous session has been ended.',
+            ),
+            backgroundColor: Colors.deepPurple,
+            duration: Duration(seconds: 5),
           ),
-        ],
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // NSFW toggle
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'NSFW',
-                    style: TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                  const SizedBox(width: 8),
-                  Switch(
-                    value: _nsfwEnabled,
-                    onChanged: (value) =>
-                        setState(() => _nsfwEnabled = value),
-                    activeThumbColor: Colors.deepPurple,
-                    inactiveThumbColor: Colors.grey[600],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              const Text(
-                "What's on your mind?",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+        );
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Logout',
+              onPressed: () => context.read<AuthBloc>().add(LogoutEvent()),
+            ),
+          ],
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'NSFW',
+                      style: TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: _nsfwEnabled,
+                      onChanged: (value) =>
+                          setState(() => _nsfwEnabled = value),
+                      activeThumbColor: Colors.deepPurple,
+                      inactiveThumbColor: Colors.grey[600],
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              // Search input
-              TextField(
-                controller: _textController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'e.g. romance, action, comedy',
-                  hintStyle: TextStyle(color: Colors.grey[500]),
-                  filled: true,
-                  fillColor: const Color(0xFF1E1E1E),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24.0),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20.0,
-                    vertical: 14.0,
+                const SizedBox(height: 24),
+                const Text(
+                  "What's on your mind?",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-                onSubmitted: (_) => _onSearch(),
-              ),
-              const SizedBox(height: 32),
-
-              // Action buttons
-              _buildActionButton(
-                label: 'Search',
-                isLoading: false,
-                disabled: _isRandomLoading,
-                onPressed: _onSearch,
-              ),
-              const SizedBox(height: 12),
-              _buildActionButton(
-                label: 'Surprise Me!',
-                isLoading: _isRandomLoading,
-                disabled: _isRandomLoading,
-                onPressed: _onSurpriseMe,
-              ),
-            ],
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _textController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'e.g. romance, action, comedy',
+                    hintStyle: TextStyle(color: Colors.grey[500]),
+                    filled: true,
+                    fillColor: const Color(0xFF1E1E1E),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24.0),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20.0,
+                      vertical: 14.0,
+                    ),
+                  ),
+                  onSubmitted: (_) => _onSearch(),
+                ),
+                const SizedBox(height: 32),
+                _buildActionButton(
+                  label: 'Search',
+                  isLoading: false,
+                  disabled: _isRandomLoading,
+                  onPressed: _onSearch,
+                ),
+                const SizedBox(height: 12),
+                _buildActionButton(
+                  label: 'Surprise Me!',
+                  isLoading: _isRandomLoading,
+                  disabled: _isRandomLoading,
+                  onPressed: _onSurpriseMe,
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -3,17 +3,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth_event.dart';
 import 'package:manga_recommendation_app/config/router.dart';
 import 'package:manga_recommendation_app/services/auth_service.dart';
 import 'package:manga_recommendation_app/services/manga_service.dart';
 import 'package:manga_recommendation_app/services/manga_status_service.dart';
+import 'package:path_provider/path_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
   await Hive.initFlutter();
+  HydratedBloc.storage = await HydratedStorage.build(
+    storageDirectory: HydratedStorageDirectory(
+      (await getApplicationDocumentsDirectory()).path,
+    ),
+  );
   await MangaStatusService.init();
   await MangaService.init();
   runApp(const MyApp());

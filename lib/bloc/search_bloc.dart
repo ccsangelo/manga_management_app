@@ -1,9 +1,10 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:manga_recommendation_app/bloc/search_event.dart';
 import 'package:manga_recommendation_app/bloc/search_state.dart';
+import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/services/manga_service.dart';
 
-class SearchBloc extends Bloc<SearchEvent, SearchState> {
+class SearchBloc extends HydratedBloc<SearchEvent, SearchState> {
   final MangaService _mangaService;
 
   SearchBloc({required MangaService mangaService})
@@ -33,5 +34,38 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
         sortDescending: event.sortDescending,
       ),
     ));
+  }
+
+  @override
+  SearchState? fromJson(Map<String, dynamic> json) {
+    try {
+      if (json['type'] == 'success') {
+        return SearchSuccess(
+          (json['results'] as List)
+              .map((e) => mangaFromCacheMap(e as Map<String, dynamic>))
+              .toList(),
+          keywords: json['keywords'] as String,
+          currentPage: json['currentPage'] as int,
+          lastPage: json['lastPage'] as int,
+          sortDescending: json['sortDescending'] as bool? ?? true,
+        );
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  Map<String, dynamic>? toJson(SearchState state) {
+    if (state is SearchSuccess) {
+      return {
+        'type': 'success',
+        'results': state.results.map(mangaToCacheMap).toList(),
+        'keywords': state.keywords,
+        'currentPage': state.currentPage,
+        'lastPage': state.lastPage,
+        'sortDescending': state.sortDescending,
+      };
+    }
+    return null;
   }
 }

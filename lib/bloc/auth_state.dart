@@ -4,7 +4,8 @@ class AuthLoading extends AuthState {}
 
 class AuthAuthenticated extends AuthState {
   final String token;
-  AuthAuthenticated({required this.token});
+  final bool sessionTakenOver;
+  AuthAuthenticated({required this.token, this.sessionTakenOver = false});
 }
 
 class AuthUnauthenticated extends AuthState {}

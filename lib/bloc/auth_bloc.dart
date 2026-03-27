@@ -19,10 +19,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onLogin(LoginEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
+    final hadSession = await authService.hasActiveSession();
+    if (hadSession) await authService.logout();
     final result = await authService.login(event.username, event.password);
     emit(result.fold(
       (error) => AuthError(message: error),
-      (token) => AuthAuthenticated(token: token),
+      (token) => AuthAuthenticated(token: token, sessionTakenOver: hadSession),
     ));
   }
 
