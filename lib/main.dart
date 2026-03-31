@@ -6,12 +6,16 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth_event.dart';
+import 'package:manga_recommendation_app/bloc/register_bloc.dart';
 import 'package:manga_recommendation_app/config/router.dart';
 import 'package:manga_recommendation_app/services/auth_service.dart';
+import 'package:manga_recommendation_app/services/email_verification_service.dart';
 import 'package:manga_recommendation_app/services/manga_service.dart';
 import 'package:manga_recommendation_app/services/manga_status_service.dart';
+import 'package:manga_recommendation_app/services/user_service.dart';
 import 'package:path_provider/path_provider.dart';
 
+// App initialization
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
@@ -23,11 +27,15 @@ void main() async {
   );
   await MangaStatusService.init();
   await MangaService.init();
-  runApp(const MyApp());
+  final userService = await UserService.init();
+  // await userService.clearAll(); // Clears all users, used for testing
+  runApp(MyApp(userService: userService));
 }
 
+// Root widget
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final UserService userService;
+  const MyApp({super.key, required this.userService});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -35,13 +43,19 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late final AuthBloc _authBloc;
+  late final RegisterBloc _registerBloc;
   late final MangaService _mangaService;
   late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
-    _authBloc = AuthBloc(authService: AuthService())..add(CheckAuthEvent());
+    _authBloc = AuthBloc(authService: AuthService(userService: widget.userService))
+      ..add(CheckAuthEvent());
+    _registerBloc = RegisterBloc(
+      userService: widget.userService,
+      emailVerificationService: EmailVerificationService(),
+    );
     _mangaService = MangaService();
     _router = createRouter(_authBloc);
   }
@@ -49,6 +63,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
     _authBloc.close();
+    _registerBloc.close();
     _router.dispose();
     super.dispose();
   }
@@ -57,8 +72,11 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return RepositoryProvider.value(
       value: _mangaService,
-      child: BlocProvider.value(
-        value: _authBloc,
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: _authBloc),
+          BlocProvider.value(value: _registerBloc),
+        ],
         child: MaterialApp.router(
           title: 'Manga Management App',
           routerConfig: _router,

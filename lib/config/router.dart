@@ -11,9 +11,12 @@ import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/pages/home_page.dart';
 import 'package:manga_recommendation_app/pages/login_page.dart';
 import 'package:manga_recommendation_app/pages/manga_info.dart';
+import 'package:manga_recommendation_app/pages/register_page.dart';
 import 'package:manga_recommendation_app/pages/results_page.dart';
+import 'package:manga_recommendation_app/pages/verification_page.dart';
 import 'package:manga_recommendation_app/services/manga_service.dart';
 
+// Notifier that triggers GoRouter refresh on stream events
 class GoRouterRefreshStream extends ChangeNotifier {
   late final StreamSubscription<dynamic> _subscription;
 
@@ -28,21 +31,31 @@ class GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
+// App router with auth-based redirects
 GoRouter createRouter(AuthBloc authBloc) {
   return GoRouter(
     refreshListenable: GoRouterRefreshStream(authBloc.stream),
     redirect: (context, state) {
       final isAuthenticated = authBloc.state is AuthAuthenticated;
-      final isLoginRoute = state.matchedLocation == '/login';
+      final path = state.matchedLocation;
+      final publicRoutes = ['/login', '/register', '/verify'];
 
-      if (!isAuthenticated && !isLoginRoute) return '/login';
-      if (isAuthenticated && isLoginRoute) return '/';
+      if (!isAuthenticated && !publicRoutes.contains(path)) return '/login';
+      if (isAuthenticated && publicRoutes.contains(path)) return '/';
       return null;
     },
     routes: [
       GoRoute(
         path: '/login',
         builder: (_, _) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (_, _) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: '/verify',
+        builder: (_, _) => const VerificationPage(),
       ),
       GoRoute(
         path: '/',

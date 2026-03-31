@@ -1,3 +1,4 @@
+// Auth events
 abstract class AuthEvent {}
 
 class CheckAuthEvent extends AuthEvent {}
@@ -9,3 +10,5 @@ class LoginEvent extends AuthEvent {
 }
 
 class LogoutEvent extends AuthEvent {}
+
+class ClearAuthErrorEvent extends AuthEvent {}
