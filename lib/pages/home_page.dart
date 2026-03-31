@@ -6,6 +6,7 @@ import 'package:manga_recommendation_app/bloc/auth_event.dart';
 import 'package:manga_recommendation_app/bloc/auth_state.dart';
 import 'package:manga_recommendation_app/services/manga_service.dart';
 
+// Main page with search input, NSFW toggle, and random manga
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 

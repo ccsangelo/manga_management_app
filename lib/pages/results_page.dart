@@ -7,6 +7,7 @@ import 'package:manga_recommendation_app/bloc/search_state.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/services/manga_status_service.dart';
 
+// Search results with pagination, sort/filter, and status display
 class ResultsPage extends StatefulWidget {
   final String keywords;
   final bool nsfwEnabled;

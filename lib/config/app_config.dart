@@ -1,6 +1,6 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// Environment configuration
+// Environment variable configuration
 class AppConfig {
   AppConfig._();
 
@@ -15,4 +15,16 @@ class AppConfig {
 
   static String get adminPassword =>
       dotenv.env['ADMIN_PASSWORD'] ?? (throw Exception('ADMIN_PASSWORD is not set in .env'));
+
+  static String get smtpHost =>
+      dotenv.env['SMTP_HOST'] ?? 'smtp.gmail.com';
+
+  static int get smtpPort =>
+      int.tryParse(dotenv.env['SMTP_PORT'] ?? '') ?? 587;
+
+  static String get smtpUsername =>
+      dotenv.env['SMTP_USERNAME'] ?? (throw Exception('SMTP_USERNAME is not set in .env'));
+
+  static String get smtpPassword =>
+      dotenv.env['SMTP_PASSWORD'] ?? (throw Exception('SMTP_PASSWORD is not set in .env'));
 }

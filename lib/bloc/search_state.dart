@@ -1,5 +1,6 @@
 import 'package:manga_recommendation_app/models/manga.dart';
 
+// Search states
 abstract class SearchState {}
 
 class SearchInitial extends SearchState {}

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/services/manga_status_service.dart';
 
+// Manga detail page with status picker, tags, and synopsis
 class MangaPage extends StatefulWidget {
   final Manga manga;
 
