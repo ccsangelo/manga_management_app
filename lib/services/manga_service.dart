@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
@@ -243,6 +244,160 @@ class MangaService {
       }
     }
     return false;
+  }
+
+  // Fetches the most popular manga (10, currently publishing for recency)
+  Future<Either<String, List<Manga>>> getPopular() async {
+    const cacheKey = 'popular_now';
+    final cached = _getCachedResult(cacheKey);
+    if (cached != null) return Right(cached.results);
+
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_baseUrl/manga',
+        queryParameters: {
+          'status': 'publishing',
+          'order_by': 'popularity',
+          'sort': 'asc',
+          'limit': '10',
+          'sfw': 'true',
+        },
+      );
+      final items = response.data!['data'] as List<dynamic>;
+      final results = items
+          .map((item) => Manga.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      await _putCachedResult(
+        cacheKey,
+        MangaSearchResult(results: results, currentPage: 1, lastPage: 1, hasNextPage: false),
+      );
+
+      return Right(results);
+    } on DioException catch (e) {
+      return Left(_dioErrorMessage(e));
+    }
+  }
+
+  // Fetches the most recently updated/publishing manga (10)
+  Future<Either<String, List<Manga>>> getLatestUpdates() async {
+    const cacheKey = 'latest_updates';
+    final cached = _getCachedResult(cacheKey);
+    if (cached != null) return Right(cached.results);
+
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_baseUrl/manga',
+        queryParameters: {
+          'status': 'publishing',
+          'order_by': 'start_date',
+          'sort': 'desc',
+          'limit': '10',
+          'sfw': 'true',
+        },
+      );
+      final items = response.data!['data'] as List<dynamic>;
+      final results = items
+          .map((item) => Manga.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      await _putCachedResult(
+        cacheKey,
+        MangaSearchResult(results: results, currentPage: 1, lastPage: 1, hasNextPage: false),
+      );
+
+      return Right(results);
+    } on DioException catch (e) {
+      return Left(_dioErrorMessage(e));
+    }
+  }
+
+  // Fetches recommended manga based on the user's top genres from their reading history
+  Future<Either<String, List<Manga>>> getRecommended(List<String> genres) async {
+    if (genres.isEmpty) return const Right([]);
+
+    final keywords = genres.take(3).join(', ');
+    final cacheKey = 'recommended_${genres.take(3).join('_')}';
+    final cached = _getCachedResult(cacheKey);
+    if (cached != null) return Right(cached.results);
+
+    final result = await searchManga(keywords, nsfwEnabled: false);
+    if (result.isLeft()) return result.fold(Left.new, (_) => const Right([]));
+
+    final top10 = result.getOrElse(() => const MangaSearchResult(
+      results: [], currentPage: 1, lastPage: 1, hasNextPage: false,
+    )).results.take(10).toList();
+
+    await _putCachedResult(
+      cacheKey,
+      MangaSearchResult(results: top10, currentPage: 1, lastPage: 1, hasNextPage: false),
+    );
+    return Right(top10);
+  }
+
+  // Fetches a random batch of manga (10)
+  Future<Either<String, List<Manga>>> getRandomBatch() async {
+    try {
+      final page = Random().nextInt(200) + 1;
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_baseUrl/manga',
+        queryParameters: {
+          'page': page.toString(),
+          'limit': '10',
+          'sfw': 'true',
+          'min_score': '1',
+          'order_by': 'members',
+          'sort': 'desc',
+        },
+      );
+      final items = response.data!['data'] as List<dynamic>;
+      final results = items
+          .map((item) => Manga.fromJson(item as Map<String, dynamic>))
+          .toList();
+      return Right(results);
+    } on DioException catch (e) {
+      return Left(_dioErrorMessage(e));
+    }
+  }
+
+  // Paginated latest updates (currently publishing manga ordered by popularity)
+  Future<Either<String, MangaSearchResult>> getLatestUpdatesPaginated({int page = 1}) async {
+    final cacheKey = 'latest_updates_page_$page';
+    final cached = _getCachedResult(cacheKey);
+    if (cached != null) return Right(cached);
+
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_baseUrl/manga',
+        queryParameters: {
+          'status': 'publishing',
+          'order_by': 'start_date',
+          'sort': 'desc',
+          'limit': '25',
+          'page': page.toString(),
+          'sfw': 'true',
+        },
+      );
+      final data = response.data!;
+      final items = data['data'] as List<dynamic>;
+      final pagination = data['pagination'] as Map<String, dynamic>?;
+
+      final results = items
+          .map((item) => Manga.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      final searchResult = MangaSearchResult(
+        results: results,
+        currentPage: page,
+        lastPage: pagination?['last_visible_page'] as int? ?? 1,
+        hasNextPage: pagination?['has_next_page'] as bool? ?? false,
+      );
+
+      await _putCachedResult(cacheKey, searchResult);
+      return Right(searchResult);
+    } on DioException catch (e) {
+      return Left(_dioErrorMessage(e));
+    }
   }
 
   // Fetches a random manga

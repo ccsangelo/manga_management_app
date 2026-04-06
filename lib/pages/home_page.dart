@@ -2,184 +2,261 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/bloc/auth_bloc.dart';
-import 'package:manga_recommendation_app/bloc/auth_event.dart';
 import 'package:manga_recommendation_app/bloc/auth_state.dart';
-import 'package:manga_recommendation_app/services/manga_service.dart';
+import 'package:manga_recommendation_app/bloc/home_cubit.dart';
+import 'package:manga_recommendation_app/bloc/home_state.dart';
+import 'package:manga_recommendation_app/models/manga.dart';
 
-// Main page with search input, NSFW toggle, and random manga
-class HomePage extends StatefulWidget {
+// Landing page with Popular Now, Latest Updates, Recommended, and Random
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
-}
+  Widget build(BuildContext context) {
+    final isLoggedIn =
+        context.watch<AuthBloc>().state is AuthAuthenticated;
 
-class _HomePageState extends State<HomePage> {
-  final _textController = TextEditingController();
-  bool _nsfwEnabled = false;
-  bool _isRandomLoading = false;
+    return Scaffold(
+      body: SafeArea(
+        child: BlocBuilder<HomeCubit, HomeState>(
+          builder: (context, state) {
+            return RefreshIndicator(
+              color: Colors.deepPurple,
+              onRefresh: () => context.read<HomeCubit>().load(),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                children: [
+                  // Popular Now
+                  const _SectionHeader(title: 'Popular Now'),
+                  _MangaSection(
+                    status: state.popularStatus,
+                    manga: state.popularManga,
+                    error: state.popularError,
+                  ),
+                  const SizedBox(height: 24),
 
-  @override
-  void dispose() {
-    _textController.dispose();
-    super.dispose();
-  }
+                  // Latest Updates — arrow navigates to paginated page
+                  _SectionHeader(
+                    title: 'Latest Updates',
+                    trailing: IconButton(
+                      icon: const Icon(Icons.arrow_forward, color: Colors.grey, size: 20),
+                      onPressed: () => context.push('/latest-updates'),
+                    ),
+                  ),
+                  _MangaSection(
+                    status: state.latestStatus,
+                    manga: state.latestManga,
+                    error: state.latestError,
+                  ),
+                  const SizedBox(height: 24),
 
-  void _onSearch() {
-    final keywords = _textController.text.trim();
-    if (keywords.isEmpty) return;
-    _textController.clear();
-    context.push('/results', extra: {
-      'keywords': keywords,
-      'nsfwEnabled': _nsfwEnabled,
-    });
-  }
+                  // Recommended — only shown when logged in
+                  if (isLoggedIn) ...[
+                    const _SectionHeader(title: 'Recommended'),
+                    _MangaSection(
+                      status: state.recommendedStatus,
+                      manga: state.recommendedManga,
+                      error: state.recommendedError,
+                      emptyWidget: state.recommendedHasHistory
+                          ? null
+                          : const _RecommendedNotice(),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
-  Future<void> _onSurpriseMe() async {
-    if (_isRandomLoading) return;
-    setState(() => _isRandomLoading = true);
-    final result = await context
-        .read<MangaService>()
-        .getRandom(nsfwEnabled: _nsfwEnabled);
-    if (!mounted) return;
-    setState(() => _isRandomLoading = false);
-    result.fold(
-      (error) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+                  // Random — refresh icon reloads random manga
+                  _SectionHeader(
+                    title: 'Random',
+                    trailing: IconButton(
+                      icon: const Icon(Icons.refresh, color: Colors.grey, size: 20),
+                      onPressed: () => context.read<HomeCubit>().refreshRandom(),
+                    ),
+                  ),
+                  _MangaSection(
+                    status: state.randomStatus,
+                    manga: state.randomManga,
+                    error: state.randomError,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        ),
       ),
-      (manga) => context.push('/manga', extra: manga),
     );
   }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final Widget? trailing;
+
+  const _SectionHeader({required this.title, this.trailing});
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listenWhen: (_, state) =>
-          state is AuthAuthenticated && state.sessionTakenOver,
-      listener: (context, _) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'A new login was detected. Your previous session has been ended.',
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
-            backgroundColor: Colors.deepPurple,
-            duration: Duration(seconds: 5),
           ),
-        );
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Logout',
-              onPressed: () => context.read<AuthBloc>().add(LogoutEvent()),
+          const Spacer(),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+  }
+}
+
+class _RecommendedNotice extends StatelessWidget {
+  const _RecommendedNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      height: 220,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bookmark_border, color: Colors.grey, size: 40),
+            SizedBox(height: 12),
+            Text(
+              'Track manga to get personalized recommendations.',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'NSFW',
-                      style: TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                    const SizedBox(width: 8),
-                    Switch(
-                      value: _nsfwEnabled,
-                      onChanged: (value) =>
-                          setState(() => _nsfwEnabled = value),
-                      activeThumbColor: Colors.deepPurple,
-                      inactiveThumbColor: Colors.grey[600],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  "What's on your mind?",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: _textController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'e.g. romance, action, comedy',
-                    hintStyle: TextStyle(color: Colors.grey[500]),
-                    filled: true,
-                    fillColor: const Color(0xFF1E1E1E),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24.0),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20.0,
-                      vertical: 14.0,
-                    ),
-                  ),
-                  onSubmitted: (_) => _onSearch(),
-                ),
-                const SizedBox(height: 32),
-                _buildActionButton(
-                  label: 'Search',
-                  isLoading: false,
-                  disabled: _isRandomLoading,
-                  onPressed: _onSearch,
-                ),
-                const SizedBox(height: 12),
-                _buildActionButton(
-                  label: 'Surprise Me!',
-                  isLoading: _isRandomLoading,
-                  disabled: _isRandomLoading,
-                  onPressed: _onSurpriseMe,
-                ),
-              ],
-            ),
+      ),
+    );
+  }
+}
+
+class _MangaSection extends StatelessWidget {
+  final HomeStatus status;
+  final List<Manga> manga;
+  final String? error;
+  final Widget? emptyWidget;
+
+  const _MangaSection({
+    required this.status,
+    required this.manga,
+    this.error,
+    this.emptyWidget,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (status == HomeStatus.loading) {
+      return const SizedBox(
+        height: 220,
+        child: Center(child: CircularProgressIndicator(color: Colors.deepPurple)),
+      );
+    }
+
+    if (status == HomeStatus.error) {
+      return SizedBox(
+        height: 220,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                error ?? 'Something went wrong.',
+                style: TextStyle(color: Colors.grey[400]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => context.read<HomeCubit>().load(),
+                child: const Text('Retry', style: TextStyle(color: Colors.deepPurple)),
+              ),
+            ],
           ),
+        ),
+      );
+    }
+
+    if (manga.isEmpty) {
+      return emptyWidget ??
+          const SizedBox(
+            height: 220,
+            child: Center(
+              child: Text('No manga found.', style: TextStyle(color: Colors.grey)),
+            ),
+          );
+    }
+
+    return SizedBox(
+      height: 220,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: manga.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) => _MangaCard(manga: manga[index]),
+      ),
+    );
+  }
+}
+
+class _MangaCard extends StatelessWidget {
+  final Manga manga;
+  const _MangaCard({required this.manga});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/manga', extra: manga),
+      child: SizedBox(
+        width: 130,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: manga.imageUrl != null
+                  ? Image.network(
+                      manga.imageUrl!,
+                      height: 170,
+                      width: 130,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _placeholder(),
+                    )
+                  : _placeholder(),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              manga.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildActionButton({
-    required String label,
-    required bool isLoading,
-    required bool disabled,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: disabled ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepPurple,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24.0),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 14.0),
-        ),
-        child: isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : Text(label),
-      ),
+  Widget _placeholder() {
+    return Container(
+      height: 170,
+      width: 130,
+      color: const Color(0xFF2A2A2A),
+      child: const Icon(Icons.menu_book, color: Colors.grey, size: 32),
     );
   }
 }

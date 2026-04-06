@@ -55,6 +55,8 @@ class _MangaPageState extends State<MangaPage> {
                   _status = status;
                   MangaStatusService.instance
                       .setStatus(widget.manga.malId, status);
+                  MangaStatusService.instance
+                      .saveGenres(widget.manga.malId, widget.manga.genres);
                 });
                 Navigator.pop(context);
               },
@@ -83,7 +85,6 @@ class _MangaPageState extends State<MangaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.manga.title, overflow: TextOverflow.ellipsis),
         backgroundColor: const Color(0xFF1E1E1E),
         foregroundColor: Colors.white,
         actions: [

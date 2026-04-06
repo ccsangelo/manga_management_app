@@ -49,7 +49,6 @@ class _ResultsPageState extends State<ResultsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Results'),
         backgroundColor: const Color(0xFF1E1E1E),
         foregroundColor: Colors.white,
         actions: [
