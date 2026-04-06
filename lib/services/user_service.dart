@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:crypto/crypto.dart';
+import 'package:bcrypt/bcrypt.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-// Hive-backed user storage with SHA-256 password hashing
+// Hive-backed user storage with bcrypt password hashing
 class UserService {
   static const _boxName = 'users';
   late final Box<String> _box;
@@ -15,7 +15,7 @@ class UserService {
   }
 
   String _hashPassword(String password) =>
-      sha256.convert(utf8.encode(password)).toString();
+      BCrypt.hashpw(password, BCrypt.gensalt());
 
   bool isUsernameTaken(String username) => _box.containsKey(username);
 
@@ -29,9 +29,17 @@ class UserService {
   }
 
   bool validateCredentials(String username, String password) {
-    final json = _box.get(username);
-    if (json == null) return false;
-    return jsonDecode(json)['passwordHash'] == _hashPassword(password);
+    final raw = _box.get(username);
+    if (raw == null) return false;
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    final storedHash = map['passwordHash'] as String;
+
+    // Legacy SHA-256 hash (64-char hex) — reject, requires re-registration
+    if (!storedHash.startsWith('\$2')) {
+      return false;
+    }
+
+    return BCrypt.checkpw(password, storedHash);
   }
 
   Future<void> clearAll() => _box.clear();

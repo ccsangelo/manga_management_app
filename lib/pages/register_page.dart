@@ -5,7 +5,7 @@ import 'package:manga_recommendation_app/bloc/register_bloc.dart';
 import 'package:manga_recommendation_app/bloc/register_event.dart';
 import 'package:manga_recommendation_app/bloc/register_state.dart';
 
-// Registration form with email verification trigger
+// Registration form with email, username, password, and verification trigger
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -19,6 +19,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   static final _emailRegex = RegExp(r'^[\w\-.+]+@[\w\-]+\.[\w\-.]+$');
 
@@ -40,25 +42,39 @@ class _RegisterPageState extends State<RegisterPage> {
         ));
   }
 
+  InputDecoration _inputDecoration({
+    required String hint,
+    required IconData prefix,
+    Widget? suffix,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: Colors.grey[500]),
+      filled: true,
+      fillColor: const Color(0xFF1E1E1E),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      prefixIcon: Icon(prefix, color: Colors.grey),
+      suffixIcon: suffix,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/login'),
-        ),
-        title: const Text('Register'),
+        backgroundColor: const Color(0xFF1E1E1E),
+        foregroundColor: Colors.white,
       ),
       body: BlocListener<RegisterBloc, RegisterState>(
         listener: (context, state) {
-          if (state is RegisterCodeSent) {
-            context.go('/verify');
-          }
+          if (state is RegisterCodeSent) context.go('/verify');
         },
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(32),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
               child: Form(
@@ -66,92 +82,149 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: BlocBuilder<RegisterBloc, RegisterState>(
                   builder: (context, state) {
                     return Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.person_add, size: 80, color: Theme.of(context).colorScheme.primary),
+                        const Icon(Icons.person_add,
+                            color: Colors.deepPurple, size: 64),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Create Account',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 32),
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            hintText: 'Enter your email',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            prefixIcon: const Icon(Icons.email),
-                            helperText: ' ',
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _inputDecoration(
+                            hint: 'Email',
+                            prefix: Icons.email,
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) return 'Email is required';
-                            if (!_emailRegex.hasMatch(value.trim())) return 'Enter a valid email';
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Email is required';
+                            }
+                            if (!_emailRegex.hasMatch(v.trim())) {
+                              return 'Enter a valid email';
+                            }
                             return null;
                           },
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _usernameController,
-                          decoration: InputDecoration(
-                            labelText: 'Username',
-                            hintText: 'Choose a username',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            prefixIcon: const Icon(Icons.person),
-                            helperText: ' ',
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _inputDecoration(
+                            hint: 'Username',
+                            prefix: Icons.person,
                           ),
-                          validator: (value) =>
-                              (value == null || value.trim().isEmpty) ? 'Username is required' : null,
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Username is required'
+                              : null,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _passwordController,
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            hintText: 'Enter a password',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            prefixIcon: const Icon(Icons.lock),
-                            helperText: ' ',
+                          obscureText: _obscurePassword,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _inputDecoration(
+                            hint: 'Password',
+                            prefix: Icons.lock,
+                            suffix: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword),
+                            ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) return 'Password is required';
-                            if (value.length < 6) return 'Password must be at least 6 characters';
+                          validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return 'Password is required';
+                            }
+                            if (v.length < 6) {
+                              return 'At least 6 characters';
+                            }
                             return null;
                           },
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _confirmPasswordController,
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            labelText: 'Confirm Password',
-                            hintText: 'Re-enter your password',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            helperText: ' ',
+                          obscureText: _obscureConfirm,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _inputDecoration(
+                            hint: 'Confirm Password',
+                            prefix: Icons.lock_outline,
+                            suffix: IconButton(
+                              icon: Icon(
+                                _obscureConfirm
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () => setState(
+                                  () => _obscureConfirm = !_obscureConfirm),
+                            ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) return 'Please confirm your password';
-                            if (value != _passwordController.text) return 'Passwords do not match';
+                          validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return 'Please confirm your password';
+                            }
+                            if (v != _passwordController.text) {
+                              return 'Passwords do not match';
+                            }
                             return null;
                           },
                         ),
+                        if (state is RegisterError &&
+                            !state.isVerificationStep) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            state.message,
+                            style: const TextStyle(
+                                color: Colors.redAccent, fontSize: 13),
+                          ),
+                        ],
                         const SizedBox(height: 24),
                         SizedBox(
                           width: double.infinity,
                           height: 48,
                           child: ElevatedButton(
-                            onPressed: state is RegisterLoading ? null : _handleRegister,
+                            onPressed: state is RegisterLoading
+                                ? null
+                                : _handleRegister,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                             child: state is RegisterLoading
                                 ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white),
                                   )
-                                : const Text('Register', style: TextStyle(fontSize: 16)),
+                                : const Text('Register',
+                                    style: TextStyle(fontSize: 16)),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: Text(
-                            state is RegisterError && !state.isVerificationStep ? state.message : '',
-                            style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+                        const SizedBox(height: 16),
+                        TextButton(
+                          onPressed: () => context.go('/login'),
+                          child: const Text(
+                            'Already have an account? Log in',
+                            style: TextStyle(color: Colors.deepPurple),
                           ),
                         ),
                       ],

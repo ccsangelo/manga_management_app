@@ -28,7 +28,7 @@ class ShellPage extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              context.push('/login');
+              navigationShell.goBranch(3);
             },
             child: const Text('Log In', style: TextStyle(color: Colors.deepPurple)),
           ),
