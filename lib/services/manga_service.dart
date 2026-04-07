@@ -5,13 +5,14 @@ import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:manga_recommendation_app/config/app_config.dart';
+import 'package:manga_recommendation_app/models/anime.dart';
+import 'package:manga_recommendation_app/models/genre_item.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
 import 'package:manga_recommendation_app/models/manga_search_result.dart';
 
 // Jikan API service with Hive-backed caching and Either-based error handling
 class MangaService {
   static const _nsfwGenres = ['ecchi', 'erotica', 'hentai'];
-  static const _maxRandomRetries = 5;
   static const _maxCacheSize = 50;
   static const _searchCacheBoxName = 'search_cache';
   static const _cacheDuration = Duration(hours: 1);
@@ -137,8 +138,9 @@ class MangaService {
     int page = 1,
     bool nsfwEnabled = false,
     bool sortDescending = true,
+    bool orMode = false,
   }) async {
-    final cacheKey = '${keywords}_${page}_${nsfwEnabled}_$sortDescending';
+    final cacheKey = '${keywords}_${page}_${nsfwEnabled}_${sortDescending}_$orMode';
     final cached = _getCachedResult(cacheKey);
     if (cached != null) return Right(cached);
 
@@ -176,6 +178,16 @@ class MangaService {
         lastPage: 1,
         hasNextPage: false,
       ));
+    }
+
+    // OR mode: make one call per genre, merge & deduplicate
+    if (orMode && genreIds.length > 1) {
+      return _searchMangaOr(
+        genreIds: genreIds,
+        nsfwEnabled: nsfwEnabled,
+        sortDescending: sortDescending,
+        cacheKey: cacheKey,
+      );
     }
 
     final queryParams = <String, dynamic>{
@@ -232,6 +244,61 @@ class MangaService {
     }
 
     return null;
+  }
+
+  // OR mode search: one request per genre ID, merge & deduplicate, sort by score
+  Future<Either<String, MangaSearchResult>> _searchMangaOr({
+    required Set<int> genreIds,
+    required bool nsfwEnabled,
+    required bool sortDescending,
+    required String cacheKey,
+  }) async {
+    final seen = <int>{};
+    final merged = <Manga>[];
+
+    for (final id in genreIds) {
+      try {
+        final params = <String, dynamic>{
+          'limit': '25',
+          'page': '1',
+          'order_by': 'score',
+          'sort': sortDescending ? 'desc' : 'asc',
+          'genres': id.toString(),
+        };
+        if (!nsfwEnabled) params['sfw'] = 'true';
+
+        final response = await _dio.get<Map<String, dynamic>>(
+          '$_baseUrl/manga',
+          queryParameters: params,
+        );
+        final items = response.data!['data'] as List<dynamic>;
+        for (final item in items) {
+          final manga = Manga.fromJson(item as Map<String, dynamic>);
+          if (!nsfwEnabled && _isNsfw(manga)) continue;
+          if (seen.add(manga.malId)) merged.add(manga);
+        }
+      } on DioException catch (e) {
+        return Left(_dioErrorMessage(e));
+      }
+
+      // Stagger requests to respect Jikan rate limit
+      await Future.delayed(const Duration(milliseconds: 400));
+    }
+
+    // Sort merged results
+    merged.sort((a, b) => sortDescending
+        ? b.score.compareTo(a.score)
+        : a.score.compareTo(b.score));
+
+    final searchResult = MangaSearchResult(
+      results: merged.take(25).toList(),
+      currentPage: 1,
+      lastPage: 1,
+      hasNextPage: false,
+    );
+
+    await _putCachedResult(cacheKey, searchResult);
+    return Right(searchResult);
   }
 
   // Checks if a manga is NSFW
@@ -400,27 +467,108 @@ class MangaService {
     }
   }
 
-  // Fetches a random manga
-  Future<Either<String, Manga>> getRandom({bool nsfwEnabled = false}) async {
-    for (var attempt = 0; attempt < _maxRandomRetries; attempt++) {
-      if (attempt > 0) {
-        await Future.delayed(const Duration(seconds: 1));
-      }
+  // Fetches genre/theme/demographic categories from Jikan
+  // filter: 'genres', 'explicit_genres', 'themes', 'demographics'
+  final Map<String, List<GenreItem>> _genreListCache = {};
 
-      try {
-        final response =
-            await _dio.get<Map<String, dynamic>>('$_baseUrl/random/manga');
-        final manga =
-            Manga.fromJson(response.data!['data'] as Map<String, dynamic>);
-
-        if (nsfwEnabled || !_isNsfw(manga)) return Right(manga);
-      } on DioException catch (e) {
-        return Left(_dioErrorMessage(e));
-      }
+  Future<Either<String, List<GenreItem>>> getMangaGenres({
+    String filter = 'genres',
+  }) async {
+    if (_genreListCache.containsKey(filter)) {
+      return Right(_genreListCache[filter]!);
     }
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_baseUrl/genres/manga',
+        queryParameters: {'filter': filter},
+      );
+      final items = (response.data?['data'] as List<dynamic>?) ?? [];
+      final genres = items.map((e) => GenreItem.fromJson(e as Map<String, dynamic>)).toList();
+      _genreListCache[filter] = genres;
+      return Right(genres);
+    } on DioException catch (e) {
+      return Left(_dioErrorMessage(e));
+    }
+  }
 
-    return Left(
-        'Could not find a non-NSFW manga after $_maxRandomRetries attempts. Please try again.');
+  // Fetches paginated top manga with optional type/filter
+  Future<Either<String, MangaSearchResult>> getTopMangaPaginated({
+    String? type,
+    String? filter,
+    int page = 1,
+  }) async {
+    final cacheKey = 'top_manga_${type ?? 'all'}_${filter ?? 'none'}_$page';
+    final cached = _getCachedResult(cacheKey);
+    if (cached != null) return Right(cached);
+
+    try {
+      final params = <String, dynamic>{
+        'page': page.toString(),
+        'limit': '25',
+      };
+      if (type != null) params['type'] = type;
+      if (filter != null) params['filter'] = filter;
+
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_baseUrl/top/manga',
+        queryParameters: params,
+      );
+      final data = response.data!;
+      final items = data['data'] as List<dynamic>;
+      final pagination = data['pagination'] as Map<String, dynamic>?;
+
+      final results = items
+          .map((item) => Manga.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      final searchResult = MangaSearchResult(
+        results: results,
+        currentPage: page,
+        lastPage: pagination?['last_visible_page'] as int? ?? 1,
+        hasNextPage: pagination?['has_next_page'] as bool? ?? false,
+      );
+
+      await _putCachedResult(cacheKey, searchResult);
+      return Right(searchResult);
+    } on DioException catch (e) {
+      return Left(_dioErrorMessage(e));
+    }
+  }
+
+  // Fetches paginated anime from /top/anime
+  Future<Either<String, AnimeSearchResult>> getTopAnimePaginated({
+    String? filter,
+    int page = 1,
+  }) async {
+    try {
+      final params = <String, dynamic>{
+        'page': page.toString(),
+        'limit': '25',
+        'sfw': 'true',
+      };
+      if (filter != null) params['filter'] = filter;
+
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_baseUrl/top/anime',
+        queryParameters: params,
+      );
+      final data = response.data!;
+      final items = data['data'] as List<dynamic>;
+      final pagination = data['pagination'] as Map<String, dynamic>?;
+
+      final results = items
+          .map((item) => Anime.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      return Right(AnimeSearchResult(
+        results: results,
+        currentPage: page,
+        lastPage: pagination?['last_visible_page'] as int? ?? 1,
+        hasNextPage: pagination?['has_next_page'] as bool? ?? false,
+      ));
+    } on DioException catch (e) {
+      return Left(_dioErrorMessage(e));
+    }
   }
 }
 

@@ -18,6 +18,7 @@ class SearchBloc extends HydratedBloc<SearchEvent, SearchState> {
         page: event.page,
         nsfwEnabled: event.nsfwEnabled,
         sortDescending: event.sortDescending,
+        orMode: event.orMode,
       );
       emit(result.fold(
         (error) => SearchFailure(error),

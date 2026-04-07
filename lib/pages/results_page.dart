@@ -11,11 +11,13 @@ import 'package:manga_recommendation_app/services/manga_status_service.dart';
 class ResultsPage extends StatefulWidget {
   final String keywords;
   final bool nsfwEnabled;
+  final bool orMode;
 
   const ResultsPage({
     super.key,
     required this.keywords,
     this.nsfwEnabled = false,
+    this.orMode = false,
   });
 
   @override
@@ -35,6 +37,7 @@ class _ResultsPageState extends State<ResultsPage> {
             page: page,
             nsfwEnabled: widget.nsfwEnabled,
             sortDescending: _sortDescending,
+            orMode: widget.orMode,
           ),
         );
   }
@@ -308,6 +311,7 @@ class _ResultsPageState extends State<ResultsPage> {
                                 keywords,
                                 nsfwEnabled: widget.nsfwEnabled,
                                 sortDescending: _sortDescending,
+                                orMode: widget.orMode,
                               ),
                             );
                       }

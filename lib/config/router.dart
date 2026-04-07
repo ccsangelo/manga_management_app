@@ -10,10 +10,12 @@ import 'package:manga_recommendation_app/bloc/paginated_list_cubit.dart';
 import 'package:manga_recommendation_app/bloc/search_bloc.dart';
 import 'package:manga_recommendation_app/bloc/search_event.dart';
 import 'package:manga_recommendation_app/models/manga.dart';
+import 'package:manga_recommendation_app/pages/adapted_anime_page.dart';
 import 'package:manga_recommendation_app/pages/home_page.dart';
 import 'package:manga_recommendation_app/pages/login_page.dart';
 import 'package:manga_recommendation_app/pages/manga_info.dart';
 import 'package:manga_recommendation_app/pages/paginated_list_page.dart';
+import 'package:manga_recommendation_app/pages/rankings_page.dart';
 import 'package:manga_recommendation_app/pages/reading_status_page.dart';
 import 'package:manga_recommendation_app/pages/register_page.dart';
 import 'package:manga_recommendation_app/pages/results_page.dart';
@@ -126,11 +128,16 @@ GoRouter createRouter(AuthBloc authBloc) {
           final extra = state.extra as Map<String, dynamic>;
           final keywords = extra['keywords'] as String;
           final nsfwEnabled = extra['nsfwEnabled'] as bool? ?? false;
+          final orMode = extra['orMode'] as bool? ?? false;
           return BlocProvider(
             create: (_) => SearchBloc(
               mangaService: context.read<MangaService>(),
-            )..add(SearchRequested(keywords, nsfwEnabled: nsfwEnabled)),
-            child: ResultsPage(keywords: keywords, nsfwEnabled: nsfwEnabled),
+            )..add(SearchRequested(keywords,
+                nsfwEnabled: nsfwEnabled, orMode: orMode)),
+            child: ResultsPage(
+                keywords: keywords,
+                nsfwEnabled: nsfwEnabled,
+                orMode: orMode),
           );
         },
       ),
@@ -144,6 +151,18 @@ GoRouter createRouter(AuthBloc authBloc) {
           )..loadFirstPage(),
           child: const PaginatedListPage(),
         ),
+      ),
+
+      // Adapted to Anime page (3 tabs)
+      GoRoute(
+        path: '/adapted-anime',
+        builder: (_, _) => const AdaptedAnimePage(),
+      ),
+
+      // Rankings page (9 tabs)
+      GoRoute(
+        path: '/rankings',
+        builder: (_, _) => const RankingsPage(),
       ),
     ],
   );
