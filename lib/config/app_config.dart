@@ -17,10 +17,10 @@ class AppConfig {
       dotenv.env['ADMIN_PASSWORD'] ?? (throw Exception('ADMIN_PASSWORD is not set in .env'));
 
   static String get smtpHost =>
-      dotenv.env['SMTP_HOST'] ?? 'smtp.gmail.com';
+      dotenv.env['SMTP_HOST'] ?? (throw Exception('SMTP_HOST is not set in .env'));
 
   static int get smtpPort =>
-      int.tryParse(dotenv.env['SMTP_PORT'] ?? '') ?? 587;
+      int.tryParse(dotenv.env['SMTP_PORT'] ?? '') ?? (throw Exception('SMTP_PORT is not set in .env'));
 
   static String get smtpUsername =>
       dotenv.env['SMTP_USERNAME'] ?? (throw Exception('SMTP_USERNAME is not set in .env'));
