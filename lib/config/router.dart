@@ -3,27 +3,29 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:manga_recommendation_app/bloc/auth_bloc.dart';
-import 'package:manga_recommendation_app/bloc/auth_state.dart';
-import 'package:manga_recommendation_app/bloc/home_cubit.dart';
-import 'package:manga_recommendation_app/bloc/paginated_list_cubit.dart';
-import 'package:manga_recommendation_app/bloc/search_bloc.dart';
-import 'package:manga_recommendation_app/bloc/search_event.dart';
-import 'package:manga_recommendation_app/models/manga.dart';
-import 'package:manga_recommendation_app/pages/adapted_anime_page.dart';
-import 'package:manga_recommendation_app/pages/home_page.dart';
-import 'package:manga_recommendation_app/pages/login_page.dart';
-import 'package:manga_recommendation_app/pages/manga_info.dart';
-import 'package:manga_recommendation_app/pages/paginated_list_page.dart';
-import 'package:manga_recommendation_app/pages/rankings_page.dart';
-import 'package:manga_recommendation_app/pages/reading_status_page.dart';
-import 'package:manga_recommendation_app/pages/register_page.dart';
-import 'package:manga_recommendation_app/pages/results_page.dart';
-import 'package:manga_recommendation_app/pages/search_page.dart';
-import 'package:manga_recommendation_app/pages/shell_page.dart';
-import 'package:manga_recommendation_app/pages/user_page.dart';
-import 'package:manga_recommendation_app/pages/verification_page.dart';
-import 'package:manga_recommendation_app/services/manga_service.dart';
+import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
+import 'package:manga_recommendation_app/bloc/auth/auth_state.dart';
+import 'package:manga_recommendation_app/bloc/home/home_cubit.dart';
+import 'package:manga_recommendation_app/bloc/paginated_list/paginated_list_cubit.dart';
+import 'package:manga_recommendation_app/bloc/search/search_bloc.dart';
+import 'package:manga_recommendation_app/bloc/search/search_event.dart';
+import 'package:manga_recommendation_app/models/manga/manga.dart';
+import 'package:manga_recommendation_app/pages/rankings/adapted_anime_page.dart';
+import 'package:manga_recommendation_app/pages/home/home_page.dart';
+import 'package:manga_recommendation_app/pages/auth/login_page.dart';
+import 'package:manga_recommendation_app/pages/manga/manga_info.dart';
+import 'package:manga_recommendation_app/pages/rankings/paginated_list_page.dart';
+import 'package:manga_recommendation_app/pages/rankings/rankings_page.dart';
+import 'package:manga_recommendation_app/pages/reading_status/reading_status_page.dart';
+import 'package:manga_recommendation_app/pages/auth/register_page.dart';
+import 'package:manga_recommendation_app/pages/search/results_page.dart';
+import 'package:manga_recommendation_app/pages/search/search_page.dart';
+import 'package:manga_recommendation_app/pages/shell/shell_page.dart';
+import 'package:manga_recommendation_app/pages/reading_status/status_detail_page.dart';
+import 'package:manga_recommendation_app/pages/auth/user_page.dart';
+import 'package:manga_recommendation_app/pages/auth/verification_page.dart';
+import 'package:manga_recommendation_app/services/manga/manga_service.dart';
+import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
 
 // Notifier that triggers GoRouter refresh on stream events
 class GoRouterRefreshStream extends ChangeNotifier {
@@ -64,10 +66,8 @@ GoRouter createRouter(AuthBloc authBloc) {
             routes: [
               GoRoute(
                 path: '/',
-                builder: (context, _) => BlocProvider(
-                  create: (_) => HomeCubit(
-                    mangaService: context.read<MangaService>(),
-                  )..load(),
+                builder: (context, _) => BlocProvider.value(
+                  value: context.read<HomeCubit>(),
                   child: const HomePage(),
                 ),
               ),
@@ -145,12 +145,21 @@ GoRouter createRouter(AuthBloc authBloc) {
       // Paginated list pages
       GoRoute(
         path: '/latest-updates',
-        builder: (context, _) => BlocProvider(
-          create: (_) => PaginatedListCubit(
-            fetcher: context.read<MangaService>().getLatestUpdatesPaginated,
-          )..loadFirstPage(),
-          child: const PaginatedListPage(),
-        ),
+        builder: (context, _) {
+          final nsfw = UserPreferencesService.instance.isNsfwEnabled(
+            context.read<AuthBloc>().state,
+          );
+          return BlocProvider(
+            create: (_) => PaginatedListCubit(
+              fetcher: ({int page = 1}) =>
+                  context.read<MangaService>().getLatestUpdatesPaginated(
+                    page: page,
+                    nsfwEnabled: nsfw,
+                  ),
+            )..loadFirstPage(),
+            child: const PaginatedListPage(),
+          );
+        },
       ),
 
       // Adapted to Anime page (3 tabs)
@@ -163,6 +172,13 @@ GoRouter createRouter(AuthBloc authBloc) {
       GoRoute(
         path: '/rankings',
         builder: (_, _) => const RankingsPage(),
+      ),
+
+      // Status detail page (all manga with a given status)
+      GoRoute(
+        path: '/reading-status/detail',
+        builder: (_, state) =>
+            StatusDetailPage(status: state.extra as String),
       ),
     ],
   );

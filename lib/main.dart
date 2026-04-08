@@ -4,15 +4,17 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:manga_recommendation_app/bloc/auth_bloc.dart';
-import 'package:manga_recommendation_app/bloc/auth_event.dart';
-import 'package:manga_recommendation_app/bloc/register_bloc.dart';
+import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
+import 'package:manga_recommendation_app/bloc/auth/auth_event.dart';
+import 'package:manga_recommendation_app/bloc/home/home_cubit.dart';
+import 'package:manga_recommendation_app/bloc/register/register_bloc.dart';
 import 'package:manga_recommendation_app/config/router.dart';
-import 'package:manga_recommendation_app/services/auth_service.dart';
-import 'package:manga_recommendation_app/services/email_verification_service.dart';
-import 'package:manga_recommendation_app/services/manga_service.dart';
-import 'package:manga_recommendation_app/services/manga_status_service.dart';
-import 'package:manga_recommendation_app/services/user_service.dart';
+import 'package:manga_recommendation_app/services/auth/auth_service.dart';
+import 'package:manga_recommendation_app/services/auth/email_verification_service.dart';
+import 'package:manga_recommendation_app/services/manga/manga_service.dart';
+import 'package:manga_recommendation_app/services/manga/manga_status_service.dart';
+import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
+import 'package:manga_recommendation_app/services/auth/user_service.dart';
 import 'package:path_provider/path_provider.dart';
 
 // App initialization
@@ -27,6 +29,7 @@ void main() async {
   );
   await MangaStatusService.init();
   await MangaService.init();
+  await UserPreferencesService.init();
   final userService = await UserService.init();
   // await userService.clearAll(); // Clears all users, used for testing
   runApp(MyApp(userService: userService));
@@ -45,6 +48,7 @@ class _MyAppState extends State<MyApp> {
   late final AuthBloc _authBloc;
   late final RegisterBloc _registerBloc;
   late final MangaService _mangaService;
+  late final HomeCubit _homeCubit;
   late final GoRouter _router;
 
   @override
@@ -57,6 +61,7 @@ class _MyAppState extends State<MyApp> {
       emailVerificationService: EmailVerificationService(),
     );
     _mangaService = MangaService();
+    _homeCubit = HomeCubit(mangaService: _mangaService)..load();
     _router = createRouter(_authBloc);
   }
 
@@ -64,6 +69,7 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     _authBloc.close();
     _registerBloc.close();
+    _homeCubit.close();
     _router.dispose();
     super.dispose();
   }
@@ -76,6 +82,7 @@ class _MyAppState extends State<MyApp> {
         providers: [
           BlocProvider.value(value: _authBloc),
           BlocProvider.value(value: _registerBloc),
+          BlocProvider.value(value: _homeCubit),
         ],
         child: MaterialApp.router(
           title: 'Manga Management App',

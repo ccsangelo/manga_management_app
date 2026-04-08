@@ -2,19 +2,23 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:manga_recommendation_app/bloc/auth_bloc.dart';
-import 'package:manga_recommendation_app/bloc/auth_event.dart';
-import 'package:manga_recommendation_app/bloc/auth_state.dart';
-import 'package:manga_recommendation_app/bloc/register_bloc.dart';
-import 'package:manga_recommendation_app/bloc/register_event.dart';
-import 'package:manga_recommendation_app/bloc/register_state.dart';
-import 'package:manga_recommendation_app/pages/login_page.dart';
-import 'package:manga_recommendation_app/pages/user_page.dart';
-import 'package:manga_recommendation_app/services/auth_service.dart';
-import 'package:manga_recommendation_app/services/email_verification_service.dart';
-import 'package:manga_recommendation_app/services/user_service.dart';
+import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
+import 'package:manga_recommendation_app/bloc/auth/auth_event.dart';
+import 'package:manga_recommendation_app/bloc/auth/auth_state.dart';
+import 'package:manga_recommendation_app/bloc/home/home_cubit.dart';
+import 'package:manga_recommendation_app/bloc/register/register_bloc.dart';
+import 'package:manga_recommendation_app/bloc/register/register_event.dart';
+import 'package:manga_recommendation_app/bloc/register/register_state.dart';
+import 'package:manga_recommendation_app/pages/auth/login_page.dart';
+import 'package:manga_recommendation_app/pages/auth/user_page.dart';
+import 'package:manga_recommendation_app/services/auth/auth_service.dart';
+import 'package:manga_recommendation_app/services/auth/email_verification_service.dart';
+import 'package:manga_recommendation_app/services/manga/manga_service.dart';
+import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
+import 'package:manga_recommendation_app/services/auth/user_service.dart';
 
 // Service mocks (for bloc unit tests)
 class MockAuthService extends Mock implements AuthService {}
@@ -27,12 +31,16 @@ class MockEmailVerificationService extends Mock
 // Bloc mock (for widget tests)
 class MockAuthBloc extends Mock implements AuthBloc {}
 
+class MockMangaService extends Mock implements MangaService {}
+
 // Fallback values
 class FakeAuthEvent extends Fake implements AuthEvent {}
 
 void main() {
-  setUpAll(() {
+  setUpAll(() async {
     registerFallbackValue(FakeAuthEvent());
+    Hive.init('build/test_cache');
+    await UserPreferencesService.init();
   });
 
   // ===================== AuthBloc Unit Tests =====================
@@ -348,6 +356,7 @@ void main() {
   // ===================== UserPage Widget Tests =====================
   group('UserPage', () {
     late MockAuthBloc mockAuthBloc;
+    late HomeCubit homeCubit;
 
     setUp(() {
       mockAuthBloc = MockAuthBloc();
@@ -355,13 +364,17 @@ void main() {
           .thenAnswer((_) => Stream<AuthState>.empty());
       when(() => mockAuthBloc.isClosed).thenReturn(false);
       when(() => mockAuthBloc.close()).thenAnswer((_) async {});
+      homeCubit = HomeCubit(mangaService: MockMangaService());
     });
 
     Widget buildUserPage() {
       return MaterialApp(
         theme: ThemeData.dark(),
-        home: BlocProvider<AuthBloc>.value(
-          value: mockAuthBloc,
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<AuthBloc>.value(value: mockAuthBloc),
+            BlocProvider<HomeCubit>.value(value: homeCubit),
+          ],
           child: const UserPage(),
         ),
       );
@@ -378,7 +391,7 @@ void main() {
 
     testWidgets('shows profile with logout when authenticated', (tester) async {
       when(() => mockAuthBloc.state)
-          .thenReturn(AuthAuthenticated(token: 'token'));
+          .thenReturn(AuthAuthenticated(token: 'token', username: 'testuser'));
       await tester.pumpWidget(buildUserPage());
 
       expect(find.text('Log Out'), findsOneWidget);
@@ -387,7 +400,7 @@ void main() {
 
     testWidgets('dispatches LogoutEvent on logout tap', (tester) async {
       when(() => mockAuthBloc.state)
-          .thenReturn(AuthAuthenticated(token: 'token'));
+          .thenReturn(AuthAuthenticated(token: 'token', username: 'testuser'));
       await tester.pumpWidget(buildUserPage());
 
       await tester.tap(find.text('Log Out'));
