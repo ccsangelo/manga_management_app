@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_event.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_state.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 
 // Standalone login page (pushed via /login route)
 class LoginPage extends StatefulWidget {
@@ -38,7 +39,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: AppColors.surface,
         foregroundColor: Colors.white,
       ),
       body: Center(
@@ -53,7 +54,7 @@ class _LoginPageState extends State<LoginPage> {
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.book, color: Colors.deepPurple, size: 64),
+                      const Icon(Icons.book, color: AppColors.accent, size: 64),
                       const SizedBox(height: 16),
                       const Text(
                         'Welcome Back',
@@ -73,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
                           hintText: 'Username',
                           hintStyle: TextStyle(color: Colors.grey[500]),
                           filled: true,
-                          fillColor: const Color(0xFF1E1E1E),
+                          fillColor: AppColors.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
@@ -96,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
                           hintText: 'Password',
                           hintStyle: TextStyle(color: Colors.grey[500]),
                           filled: true,
-                          fillColor: const Color(0xFF1E1E1E),
+                          fillColor: AppColors.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
@@ -135,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed:
                               state is AuthLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
+                            backgroundColor: AppColors.accent,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -157,7 +158,7 @@ class _LoginPageState extends State<LoginPage> {
                         onPressed: () => context.go('/register'),
                         child: const Text(
                           "Don't have an account? Register",
-                          style: TextStyle(color: Colors.deepPurple),
+                          style: TextStyle(color: AppColors.accent),
                         ),
                       ),
                     ],

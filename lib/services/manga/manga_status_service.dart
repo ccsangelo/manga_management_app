@@ -137,4 +137,13 @@ class MangaStatusService extends ChangeNotifier {
     _cachedTopGenres = null;
     _lastGenreComputeTime = null;
   }
+
+  // Clears all stored statuses, genres, and manga data (used on logout)
+  Future<void> clearAll() async {
+    await _box.clear();
+    await _genresBox.clear();
+    await _mangaDataBox.clear();
+    _invalidateGenreCache();
+    notifyListeners();
+  }
 }

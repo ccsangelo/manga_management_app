@@ -3,11 +3,14 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 import 'package:manga_recommendation_app/models/anime/anime.dart';
 import 'package:manga_recommendation_app/models/genre/genre_item.dart';
 import 'package:manga_recommendation_app/models/manga/manga.dart';
 import 'package:manga_recommendation_app/services/manga/manga_service.dart';
 import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
+import 'package:manga_recommendation_app/widgets/anime_card.dart';
+import 'package:manga_recommendation_app/widgets/manga_card.dart';
 
 // Search page with filter modal, Adapted to Anime, and Rankings sections
 class SearchPage extends StatefulWidget {
@@ -159,7 +162,7 @@ class _SearchPageState extends State<SearchPage> {
                   hintText: 'Search genres, themes...',
                   hintStyle: TextStyle(color: Colors.grey[500]),
                   filled: true,
-                  fillColor: const Color(0xFF2A2A2A),
+                  fillColor: AppColors.surfaceVariant,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -170,7 +173,7 @@ class _SearchPageState extends State<SearchPage> {
                   ),
                   prefixIcon: const Icon(Icons.search, color: Colors.grey),
                   suffixIcon: IconButton(
-                    icon: const Icon(Icons.tune, color: Colors.deepPurple),
+                    icon: const Icon(Icons.tune, color: AppColors.accent),
                     onPressed: _openFilterModal,
                   ),
                 ),
@@ -266,7 +269,7 @@ class _AnimePreview extends StatelessWidget {
       return const SizedBox(
         height: 220,
         child: Center(
-            child: CircularProgressIndicator(color: Colors.deepPurple)),
+            child: CircularProgressIndicator(color: AppColors.accent)),
       );
     }
     if (error != null) {
@@ -294,91 +297,8 @@ class _AnimePreview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: anime.length,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (_, index) => _AnimeCard(anime: anime[index]),
+        itemBuilder: (_, index) => AnimeCard(anime: anime[index]),
       ),
-    );
-  }
-}
-
-class _AnimeCard extends StatelessWidget {
-  final Anime anime;
-  const _AnimeCard({required this.anime});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 130,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              height: 170,
-              width: 130,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  anime.imageUrl != null
-                      ? Image.network(
-                          anime.imageUrl!,
-                          height: 170,
-                          width: 130,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) =>
-                              progress == null ? child : _placeholder(),
-                          errorBuilder: (_, _, _) => _placeholder(),
-                        )
-                      : _placeholder(),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black87],
-                        stops: [0.5, 1.0],
-                      ),
-                    ),
-                  ),
-                  if (anime.score > 0)
-                    Positioned(
-                      bottom: 4,
-                      right: 6,
-                      child: Text(
-                        anime.score.toStringAsFixed(1),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            anime.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      height: 170,
-      width: 130,
-      color: const Color(0xFF2A2A2A),
-      child: const Icon(Icons.movie, color: Colors.grey, size: 32),
     );
   }
 }
@@ -401,7 +321,7 @@ class _MangaPreview extends StatelessWidget {
       return const SizedBox(
         height: 220,
         child: Center(
-            child: CircularProgressIndicator(color: Colors.deepPurple)),
+            child: CircularProgressIndicator(color: AppColors.accent)),
       );
     }
     if (error != null) {
@@ -429,94 +349,8 @@ class _MangaPreview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: manga.length,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (_, index) => _MangaCard(manga: manga[index]),
+        itemBuilder: (_, index) => MangaCard(manga: manga[index]),
       ),
-    );
-  }
-}
-
-class _MangaCard extends StatelessWidget {
-  final Manga manga;
-  const _MangaCard({required this.manga});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/manga', extra: manga),
-      child: SizedBox(
-        width: 130,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                height: 170,
-                width: 130,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    manga.imageUrl != null
-                        ? Image.network(
-                            manga.imageUrl!,
-                            height: 170,
-                            width: 130,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null ? child : _placeholder(),
-                            errorBuilder: (_, _, _) => _placeholder(),
-                          )
-                        : _placeholder(),
-                    const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black87],
-                          stops: [0.5, 1.0],
-                        ),
-                      ),
-                    ),
-                    if (manga.score > 0)
-                      Positioned(
-                        bottom: 4,
-                        right: 6,
-                        child: Text(
-                          manga.score.toStringAsFixed(1),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              manga.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      height: 170,
-      width: 130,
-      color: const Color(0xFF2A2A2A),
-      child: const Icon(Icons.menu_book, color: Colors.grey, size: 32),
     );
   }
 }
@@ -601,7 +435,7 @@ class _FilterModalState extends State<_FilterModal> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: AppColors.surface,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Column(
@@ -651,7 +485,7 @@ class _FilterModalState extends State<_FilterModal> {
             ),
           ),
 
-          const Divider(color: Color(0xFF333333), height: 1),
+          const Divider(color: AppColors.divider, height: 1),
 
           // Scrollable genre sections
           Expanded(
@@ -675,7 +509,7 @@ class _FilterModalState extends State<_FilterModal> {
           ),
 
           // Search button
-          const Divider(color: Color(0xFF333333), height: 1),
+          const Divider(color: AppColors.divider, height: 1),
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
@@ -683,7 +517,7 @@ class _FilterModalState extends State<_FilterModal> {
               child: ElevatedButton(
                 onPressed: _selectedNames.isEmpty ? null : _onSearch,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
+                  backgroundColor: AppColors.accent,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey[800],
                   disabledForegroundColor: Colors.grey[600],
@@ -731,7 +565,7 @@ class _FilterModalState extends State<_FilterModal> {
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.deepPurple),
+                    strokeWidth: 2, color: AppColors.accent),
               ),
             ),
           )
@@ -751,11 +585,11 @@ class _FilterModalState extends State<_FilterModal> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? Colors.deepPurple
-                        : const Color(0xFF2A2A2A),
+                        ? AppColors.accent
+                        : AppColors.surfaceVariant,
                     borderRadius: BorderRadius.circular(8),
                     border: isSelected
-                        ? Border.all(color: Colors.deepPurpleAccent, width: 1)
+                        ? Border.all(color: AppColors.accentLight, width: 1)
                         : null,
                   ),
                   child: Text(
@@ -797,7 +631,7 @@ class _ModeChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? Colors.deepPurple : const Color(0xFF2A2A2A),
+          color: selected ? AppColors.accent : AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(

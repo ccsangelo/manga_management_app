@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/bloc/register/register_bloc.dart';
 import 'package:manga_recommendation_app/bloc/register/register_event.dart';
 import 'package:manga_recommendation_app/bloc/register/register_state.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 
 // Registration form with email, username, password, and verification trigger
 class RegisterPage extends StatefulWidget {
@@ -52,7 +53,7 @@ class _RegisterPageState extends State<RegisterPage> {
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey[500]),
       filled: true,
-      fillColor: const Color(0xFF1E1E1E),
+      fillColor: AppColors.surface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
@@ -66,7 +67,7 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: AppColors.surface,
         foregroundColor: Colors.white,
       ),
       body: BlocListener<RegisterBloc, RegisterState>(
@@ -86,7 +87,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.person_add,
-                            color: Colors.deepPurple, size: 64),
+                            color: AppColors.accent, size: 64),
                         const SizedBox(height: 16),
                         const Text(
                           'Create Account',
@@ -203,7 +204,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ? null
                                 : _handleRegister,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.deepPurple,
+                              backgroundColor: AppColors.accent,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -225,7 +226,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           onPressed: () => context.go('/login'),
                           child: const Text(
                             'Already have an account? Log in',
-                            style: TextStyle(color: Colors.deepPurple),
+                            style: TextStyle(color: AppColors.accent),
                           ),
                         ),
                       ],

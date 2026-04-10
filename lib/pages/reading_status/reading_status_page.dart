@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/models/manga/manga.dart';
 import 'package:manga_recommendation_app/services/manga/manga_status_service.dart';
+import 'package:manga_recommendation_app/widgets/manga_card.dart';
 
 // Reading list page grouped by status sections
 class ReadingStatusPage extends StatefulWidget {
@@ -140,7 +141,7 @@ class _StatusSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: preview.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (_, index) => _MangaCard(
+            itemBuilder: (_, index) => MangaCard(
               manga: preview[index],
               onReturn: onReturn,
             ),
@@ -151,92 +152,4 @@ class _StatusSection extends StatelessWidget {
   }
 }
 
-class _MangaCard extends StatelessWidget {
-  final Manga manga;
-  final VoidCallback onReturn;
-  const _MangaCard({required this.manga, required this.onReturn});
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        await context.push('/manga', extra: manga);
-        onReturn();
-      },
-      child: SizedBox(
-        width: 130,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                height: 170,
-                width: 130,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    manga.imageUrl != null
-                        ? Image.network(
-                            manga.imageUrl!,
-                            height: 170,
-                            width: 130,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null ? child : _placeholder(),
-                            errorBuilder: (_, _, _) => _placeholder(),
-                          )
-                        : _placeholder(),
-                    const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black87],
-                          stops: [0.5, 1.0],
-                        ),
-                      ),
-                    ),
-                    if (manga.score > 0)
-                      Positioned(
-                        bottom: 4,
-                        right: 6,
-                        child: Text(
-                          manga.score.toStringAsFixed(1),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              manga.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      height: 170,
-      width: 130,
-      color: const Color(0xFF2A2A2A),
-      child: const Icon(Icons.menu_book, color: Colors.grey, size: 32),
-    );
-  }
-}

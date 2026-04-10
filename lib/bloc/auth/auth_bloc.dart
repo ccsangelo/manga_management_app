@@ -4,6 +4,7 @@ import 'package:manga_recommendation_app/bloc/auth/auth_event.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_state.dart';
 import 'package:manga_recommendation_app/config/app_config.dart';
 import 'package:manga_recommendation_app/services/auth/auth_service.dart';
+import 'package:manga_recommendation_app/services/manga/manga_status_service.dart';
 
 // Manages authentication state
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -35,6 +36,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
     on<LogoutEvent>((_, emit) async {
       await authService.logout();
+      await MangaStatusService.instance.clearAll();
       emit(AuthUnauthenticated());
     });
     on<ClearAuthErrorEvent>((_, emit) => emit(AuthUnauthenticated()));

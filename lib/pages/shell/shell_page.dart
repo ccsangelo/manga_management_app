@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_state.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 
 // Shell page with persistent bottom navigation bar
 class ShellPage extends StatelessWidget {
@@ -14,7 +15,7 @@ class ShellPage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: AppColors.surface,
         title: const Text('Login Required', style: TextStyle(color: Colors.white)),
         content: const Text(
           'You need to be logged in to access your reading list.',
@@ -30,7 +31,7 @@ class ShellPage extends StatelessWidget {
               Navigator.pop(context);
               navigationShell.goBranch(3);
             },
-            child: const Text('Log In', style: TextStyle(color: Colors.deepPurple)),
+            child: const Text('Log In', style: TextStyle(color: AppColors.accent)),
           ),
         ],
       ),
@@ -43,8 +44,8 @@ class ShellPage extends StatelessWidget {
       body: navigationShell,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFF1E1E1E),
-          border: Border(top: BorderSide(color: Color(0xFF2A2A2A), width: 0.5)),
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.surfaceVariant, width: 0.5)),
         ),
         padding: const EdgeInsets.only(top: 8, bottom: 12),
         child: SafeArea(
@@ -106,7 +107,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? Colors.deepPurple : Colors.grey;
+    final color = isActive ? AppColors.accent : Colors.grey;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -124,7 +125,7 @@ class _NavItem extends StatelessWidget {
               width: 5,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isActive ? Colors.deepPurple : Colors.transparent,
+                color: isActive ? AppColors.accent : Colors.transparent,
               ),
             ),
           ],

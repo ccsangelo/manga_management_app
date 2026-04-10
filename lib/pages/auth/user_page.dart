@@ -5,6 +5,7 @@ import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_event.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_state.dart';
 import 'package:manga_recommendation_app/bloc/home/home_cubit.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
 
 // Profile tab — shows login form when unauthenticated, profile when logged in
@@ -67,7 +68,7 @@ class _UserPageState extends State<UserPage> {
             // User icon
             const CircleAvatar(
               radius: 56,
-              backgroundColor: Colors.deepPurple,
+              backgroundColor: AppColors.accent,
               child: Icon(Icons.person, color: Colors.white, size: 56),
             ),
             const SizedBox(height: 16),
@@ -86,7 +87,7 @@ class _UserPageState extends State<UserPage> {
             // NSFW toggle
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: SwitchListTile(
@@ -99,7 +100,7 @@ class _UserPageState extends State<UserPage> {
                   style: TextStyle(color: Colors.grey[500], fontSize: 12),
                 ),
                 value: nsfwEnabled,
-                activeThumbColor: Colors.deepPurple,
+                activeThumbColor: AppColors.accent,
                 onChanged: (value) {
                   UserPreferencesService.instance
                       .setNsfwEnabled(username, value);
@@ -166,7 +167,7 @@ class _UserPageState extends State<UserPage> {
                     hintText: 'Username',
                     hintStyle: TextStyle(color: Colors.grey[500]),
                     filled: true,
-                    fillColor: const Color(0xFF1E1E1E),
+                    fillColor: AppColors.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -187,7 +188,7 @@ class _UserPageState extends State<UserPage> {
                     hintText: 'Password',
                     hintStyle: TextStyle(color: Colors.grey[500]),
                     filled: true,
-                    fillColor: const Color(0xFF1E1E1E),
+                    fillColor: AppColors.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -222,7 +223,7 @@ class _UserPageState extends State<UserPage> {
                   child: ElevatedButton(
                     onPressed: state is AuthLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
+                      backgroundColor: AppColors.accent,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -243,7 +244,7 @@ class _UserPageState extends State<UserPage> {
                   onPressed: () => context.push('/register'),
                   child: const Text(
                     "Don't have an account? Register",
-                    style: TextStyle(color: Colors.deepPurple),
+                    style: TextStyle(color: AppColors.accent),
                   ),
                 ),
               ],

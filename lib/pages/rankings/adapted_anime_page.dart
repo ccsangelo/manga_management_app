@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 import 'package:manga_recommendation_app/models/anime/anime.dart';
 import 'package:manga_recommendation_app/services/manga/manga_service.dart';
+import 'package:manga_recommendation_app/widgets/anime_card.dart';
 
 // Anime tabs: filter param for /top/anime
 const _tabs = <({String label, String? filter})>[
@@ -22,6 +26,7 @@ class _AdaptedAnimePageState extends State<AdaptedAnimePage>
     with TickerProviderStateMixin {
   late final TabController _tabController;
   late final List<_AnimeTabState> _tabStates;
+  Timer? _scrollDebounce;
 
   @override
   void initState() {
@@ -74,6 +79,7 @@ class _AdaptedAnimePageState extends State<AdaptedAnimePage>
 
   @override
   void dispose() {
+    _scrollDebounce?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -82,11 +88,11 @@ class _AdaptedAnimePageState extends State<AdaptedAnimePage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: AppColors.surface,
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.deepPurple,
+          indicatorColor: AppColors.accent,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.grey,
           tabs: _tabs.map((t) => Tab(text: t.label)).toList(),
@@ -97,7 +103,13 @@ class _AdaptedAnimePageState extends State<AdaptedAnimePage>
         children: List.generate(_tabs.length, (i) {
           return _AnimeTabView(
             tabState: _tabStates[i],
-            onLoadMore: () => _fetchPage(i),
+            onLoadMore: () {
+              _scrollDebounce?.cancel();
+              _scrollDebounce = Timer(
+                const Duration(milliseconds: 300),
+                () => _fetchPage(i),
+              );
+            },
           );
         }),
       ),
@@ -127,7 +139,7 @@ class _AnimeTabView extends StatelessWidget {
   Widget build(BuildContext context) {
     if (tabState.isLoading && tabState.anime.isEmpty) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.deepPurple),
+        child: CircularProgressIndicator(color: AppColors.accent),
       );
     }
 
@@ -145,7 +157,7 @@ class _AnimeTabView extends StatelessWidget {
             TextButton(
               onPressed: onLoadMore,
               child: const Text('Retry',
-                  style: TextStyle(color: Colors.deepPurple)),
+                  style: TextStyle(color: AppColors.accent)),
             ),
           ],
         ),
@@ -183,90 +195,15 @@ class _AnimeTabView extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: CircularProgressIndicator(
-                    color: Colors.deepPurple, strokeWidth: 2),
+                    color: AppColors.accent, strokeWidth: 2),
               ),
             );
           }
-          return _GridAnimeCard(anime: tabState.anime[index]);
+          return GridAnimeCard(anime: tabState.anime[index]);
         },
       ),
     );
   }
 }
 
-class _GridAnimeCard extends StatelessWidget {
-  final Anime anime;
-  const _GridAnimeCard({required this.anime});
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                anime.imageUrl != null
-                    ? Image.network(
-                        anime.imageUrl!,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (_, child, progress) =>
-                            progress == null ? child : _placeholder(),
-                        errorBuilder: (_, _, _) => _placeholder(),
-                      )
-                    : _placeholder(),
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black87],
-                      stops: [0.5, 1.0],
-                    ),
-                  ),
-                ),
-                if (anime.score > 0)
-                  Positioned(
-                    bottom: 4,
-                    right: 6,
-                    child: Text(
-                      anime.score.toStringAsFixed(1),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          anime.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      color: const Color(0xFF2A2A2A),
-      child: const Center(
-        child: Icon(Icons.movie, color: Colors.grey, size: 28),
-      ),
-    );
-  }
-}

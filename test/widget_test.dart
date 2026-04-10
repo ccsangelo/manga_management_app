@@ -17,6 +17,7 @@ import 'package:manga_recommendation_app/pages/auth/user_page.dart';
 import 'package:manga_recommendation_app/services/auth/auth_service.dart';
 import 'package:manga_recommendation_app/services/auth/email_verification_service.dart';
 import 'package:manga_recommendation_app/services/manga/manga_service.dart';
+import 'package:manga_recommendation_app/services/manga/manga_status_service.dart';
 import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
 import 'package:manga_recommendation_app/services/auth/user_service.dart';
 
@@ -39,8 +40,9 @@ class FakeAuthEvent extends Fake implements AuthEvent {}
 void main() {
   setUpAll(() async {
     registerFallbackValue(FakeAuthEvent());
-    Hive.init('build/test_cache');
+    Hive.init('build/test_cache/widget');
     await UserPreferencesService.init();
+    await MangaStatusService.init();
   });
 
   // ===================== AuthBloc Unit Tests =====================

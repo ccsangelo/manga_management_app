@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 import 'package:manga_recommendation_app/models/manga/manga.dart';
 import 'package:manga_recommendation_app/services/manga/manga_status_service.dart';
+import 'package:manga_recommendation_app/widgets/manga_card.dart';
 
 // Scrollable grid of all manga with a specific reading status
 class StatusDetailPage extends StatefulWidget {
@@ -31,7 +32,7 @@ class _StatusDetailPageState extends State<StatusDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: AppColors.surface,
         foregroundColor: Colors.white,
         title: Text(widget.status),
       ),
@@ -50,92 +51,10 @@ class _StatusDetailPageState extends State<StatusDetailPage> {
               ),
               itemCount: _manga.length,
               itemBuilder: (context, index) =>
-                  _GridMangaCard(manga: _manga[index], onReturn: _refresh),
+                  GridMangaCard(manga: _manga[index], onReturn: _refresh),
             ),
     );
   }
 }
 
-class _GridMangaCard extends StatelessWidget {
-  final Manga manga;
-  final VoidCallback onReturn;
-  const _GridMangaCard({required this.manga, required this.onReturn});
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        await context.push('/manga', extra: manga);
-        onReturn();
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  manga.imageUrl != null
-                      ? Image.network(
-                          manga.imageUrl!,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) =>
-                              progress == null ? child : _placeholder(),
-                          errorBuilder: (_, _, _) => _placeholder(),
-                        )
-                      : _placeholder(),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black87],
-                        stops: [0.5, 1.0],
-                      ),
-                    ),
-                  ),
-                  if (manga.score > 0)
-                    Positioned(
-                      bottom: 4,
-                      right: 6,
-                      child: Text(
-                        manga.score.toStringAsFixed(1),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            manga.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      color: const Color(0xFF2A2A2A),
-      child: const Center(
-        child: Icon(Icons.menu_book, color: Colors.grey, size: 28),
-      ),
-    );
-  }
-}

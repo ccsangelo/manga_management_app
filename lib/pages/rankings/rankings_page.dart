@@ -1,12 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/paginated_list/paginated_list_cubit.dart';
 import 'package:manga_recommendation_app/bloc/paginated_list/paginated_list_state.dart';
-import 'package:manga_recommendation_app/models/manga/manga.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 import 'package:manga_recommendation_app/services/manga/manga_service.dart';
 import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
+import 'package:manga_recommendation_app/widgets/manga_card.dart';
 
 // Rankings tabs: type param for /top/manga, filter param for bypopularity
 const _tabs = <({String label, String? type, String? filter})>[
@@ -84,12 +86,12 @@ class _RankingsPageState extends State<RankingsPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: AppColors.surface,
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          indicatorColor: Colors.deepPurple,
+          indicatorColor: AppColors.accent,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.grey,
           tabAlignment: TabAlignment.start,
@@ -109,8 +111,21 @@ class _RankingsPageState extends State<RankingsPage>
   }
 }
 
-class _RankingTabView extends StatelessWidget {
+class _RankingTabView extends StatefulWidget {
   const _RankingTabView();
+
+  @override
+  State<_RankingTabView> createState() => _RankingTabViewState();
+}
+
+class _RankingTabViewState extends State<_RankingTabView> {
+  Timer? _scrollDebounce;
+
+  @override
+  void dispose() {
+    _scrollDebounce?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +133,7 @@ class _RankingTabView extends StatelessWidget {
       builder: (context, state) {
         if (state.status == PaginatedStatus.loading) {
           return const Center(
-            child: CircularProgressIndicator(color: Colors.deepPurple),
+            child: CircularProgressIndicator(color: AppColors.accent),
           );
         }
 
@@ -137,7 +152,7 @@ class _RankingTabView extends StatelessWidget {
                   onPressed: () =>
                       context.read<PaginatedListCubit>().loadFirstPage(),
                   child: const Text('Retry',
-                      style: TextStyle(color: Colors.deepPurple)),
+                      style: TextStyle(color: AppColors.accent)),
                 ),
               ],
             ),
@@ -156,7 +171,11 @@ class _RankingTabView extends StatelessWidget {
             if (notification is ScrollEndNotification &&
                 notification.metrics.pixels >=
                     notification.metrics.maxScrollExtent - 200) {
-              context.read<PaginatedListCubit>().loadNextPage();
+              _scrollDebounce?.cancel();
+              _scrollDebounce = Timer(
+                const Duration(milliseconds: 300),
+                () => context.read<PaginatedListCubit>().loadNextPage(),
+              );
             }
             return false;
           },
@@ -176,11 +195,11 @@ class _RankingTabView extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.all(16),
                     child: CircularProgressIndicator(
-                        color: Colors.deepPurple, strokeWidth: 2),
+                        color: AppColors.accent, strokeWidth: 2),
                   ),
                 );
               }
-              return _GridMangaCard(manga: state.manga[index]);
+              return GridMangaCard(manga: state.manga[index]);
             },
           ),
         );
@@ -189,82 +208,3 @@ class _RankingTabView extends StatelessWidget {
   }
 }
 
-class _GridMangaCard extends StatelessWidget {
-  final Manga manga;
-  const _GridMangaCard({required this.manga});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/manga', extra: manga),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  manga.imageUrl != null
-                      ? Image.network(
-                          manga.imageUrl!,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) =>
-                              progress == null ? child : _placeholder(),
-                          errorBuilder: (_, _, _) => _placeholder(),
-                        )
-                      : _placeholder(),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black87],
-                        stops: [0.5, 1.0],
-                      ),
-                    ),
-                  ),
-                  if (manga.score > 0)
-                    Positioned(
-                      bottom: 4,
-                      right: 6,
-                      child: Text(
-                        manga.score.toStringAsFixed(1),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            manga.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      color: const Color(0xFF2A2A2A),
-      child: const Center(
-        child: Icon(Icons.menu_book, color: Colors.grey, size: 28),
-      ),
-    );
-  }
-}

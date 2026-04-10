@@ -8,6 +8,7 @@ import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_event.dart';
 import 'package:manga_recommendation_app/bloc/home/home_cubit.dart';
 import 'package:manga_recommendation_app/bloc/register/register_bloc.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 import 'package:manga_recommendation_app/config/router.dart';
 import 'package:manga_recommendation_app/services/auth/auth_service.dart';
 import 'package:manga_recommendation_app/services/auth/email_verification_service.dart';
@@ -31,7 +32,6 @@ void main() async {
   await MangaService.init();
   await UserPreferencesService.init();
   final userService = await UserService.init();
-  // await userService.clearAll(); // Clears all users, used for testing
   runApp(MyApp(userService: userService));
 }
 
@@ -92,7 +92,7 @@ class _MyAppState extends State<MyApp> {
               seedColor: Colors.deepPurple,
               brightness: Brightness.dark,
             ),
-            scaffoldBackgroundColor: const Color(0xFF121212),
+            scaffoldBackgroundColor: AppColors.background,
           ),
           themeMode: ThemeMode.dark,
         ),

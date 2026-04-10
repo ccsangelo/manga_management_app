@@ -1,8 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_state.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 import 'package:manga_recommendation_app/models/manga/manga.dart';
 import 'package:manga_recommendation_app/services/manga/manga_status_service.dart';
 import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
@@ -49,7 +51,7 @@ class _MangaPageState extends State<MangaPage> {
     }
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -67,12 +69,12 @@ class _MangaPageState extends State<MangaPage> {
               ),
             ),
           ),
-          const Divider(color: Color(0xFF2A2A2A)),
+          const Divider(color: AppColors.surfaceVariant),
           ...MangaStatusService.statusOptions.map(
             (status) => ListTile(
               title: Text(status, style: const TextStyle(color: Colors.white)),
               trailing: _status == status
-                  ? const Icon(Icons.check, color: Colors.deepPurple)
+                  ? const Icon(Icons.check, color: AppColors.accent)
                   : null,
               onTap: () {
                 setState(() {
@@ -111,7 +113,7 @@ class _MangaPageState extends State<MangaPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: AppColors.surface,
         title: const Text('Login Required',
             style: TextStyle(color: Colors.white)),
         content: const Text(
@@ -130,7 +132,7 @@ class _MangaPageState extends State<MangaPage> {
               context.go('/user');
             },
             child: const Text('Log In',
-                style: TextStyle(color: Colors.deepPurple)),
+                style: TextStyle(color: AppColors.accent)),
           ),
         ],
       ),
@@ -141,13 +143,13 @@ class _MangaPageState extends State<MangaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: AppColors.surface,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: Icon(
               _status != null ? Icons.bookmark : Icons.bookmark_border,
-              color: _status != null ? Colors.deepPurple : Colors.white,
+              color: _status != null ? AppColors.accent : Colors.white,
             ),
             tooltip: 'Set Status',
             onPressed: _showStatusPicker,
@@ -162,13 +164,12 @@ class _MangaPageState extends State<MangaPage> {
             children: [
               Center(
                 child: widget.manga.imageUrl != null
-                    ? Image.network(
-                        widget.manga.imageUrl!,
+                    ? CachedNetworkImage(
+                        imageUrl: widget.manga.imageUrl!,
                         height: 300,
                         fit: BoxFit.cover,
-                        loadingBuilder: (_, child, progress) =>
-                            progress == null ? child : _placeholderImage(),
-                        errorBuilder: (_, _, _) => _placeholderImage(),
+                        placeholder: (_, _) => _placeholderImage(),
+                        errorWidget: (_, _, _) => _placeholderImage(),
                       )
                     : _placeholderImage(),
               ),
@@ -189,15 +190,15 @@ class _MangaPageState extends State<MangaPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.deepPurple.withAlpha(51),
+                    color: AppColors.accent.withAlpha(51),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: Colors.deepPurple.withAlpha(128), width: 1),
+                        color: AppColors.accent.withAlpha(128), width: 1),
                   ),
                   child: Text(
                     _status!,
                     style: const TextStyle(
-                        color: Colors.deepPurple, fontSize: 13),
+                        color: AppColors.accent, fontSize: 13),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -289,7 +290,7 @@ class _MangaPageState extends State<MangaPage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
+                          color: AppColors.surfaceVariant,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(

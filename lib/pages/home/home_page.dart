@@ -6,8 +6,10 @@ import 'package:manga_recommendation_app/bloc/auth/auth_bloc.dart';
 import 'package:manga_recommendation_app/bloc/auth/auth_state.dart';
 import 'package:manga_recommendation_app/bloc/home/home_cubit.dart';
 import 'package:manga_recommendation_app/bloc/home/home_state.dart';
+import 'package:manga_recommendation_app/config/app_theme.dart';
 import 'package:manga_recommendation_app/models/manga/manga.dart';
 import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
+import 'package:manga_recommendation_app/widgets/manga_card.dart';
 
 // Landing page with Popular Now, Latest Updates, Recommended, and Random
 class HomePage extends StatefulWidget {
@@ -52,7 +54,7 @@ class _HomePageState extends State<HomePage> {
             child: BlocBuilder<HomeCubit, HomeState>(
               builder: (context, state) {
                 return RefreshIndicator(
-                  color: Colors.deepPurple,
+                  color: AppColors.accent,
                   onRefresh: () => context.read<HomeCubit>().load(nsfwEnabled: _currentNsfw()),
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -192,7 +194,7 @@ class _MangaSection extends StatelessWidget {
     if (status == HomeStatus.loading) {
       return const SizedBox(
         height: 220,
-        child: Center(child: CircularProgressIndicator(color: Colors.deepPurple)),
+        child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
       );
     }
 
@@ -215,7 +217,7 @@ class _MangaSection extends StatelessWidget {
                     context.read<AuthBloc>().state,
                   ),
                 ),
-                child: const Text('Retry', style: TextStyle(color: Colors.deepPurple)),
+                child: const Text('Retry', style: TextStyle(color: AppColors.accent)),
               ),
             ],
           ),
@@ -240,94 +242,9 @@ class _MangaSection extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: manga.length,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (context, index) => _MangaCard(manga: manga[index]),
+        itemBuilder: (context, index) => MangaCard(manga: manga[index]),
       ),
     );
   }
 }
 
-class _MangaCard extends StatelessWidget {
-  final Manga manga;
-  const _MangaCard({required this.manga});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/manga', extra: manga),
-      child: SizedBox(
-        width: 130,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                height: 170,
-                width: 130,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    manga.imageUrl != null
-                        ? Image.network(
-                            manga.imageUrl!,
-                            height: 170,
-                            width: 130,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null ? child : _placeholder(),
-                            errorBuilder: (_, _, _) => _placeholder(),
-                          )
-                        : _placeholder(),
-                    const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black87],
-                          stops: [0.5, 1.0],
-                        ),
-                      ),
-                    ),
-                    if (manga.score > 0)
-                      Positioned(
-                        bottom: 4,
-                        right: 6,
-                        child: Text(
-                          manga.score.toStringAsFixed(1),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              manga.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      height: 170,
-      width: 130,
-      color: const Color(0xFF2A2A2A),
-      child: const Icon(Icons.menu_book, color: Colors.grey, size: 32),
-    );
-  }
-}
