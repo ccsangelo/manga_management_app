@@ -44,5 +44,13 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
       await userService.saveUser(_pendingEmail, _pendingUsername, _pendingPassword);
       emit(RegisterVerified(username: _pendingUsername, password: _pendingPassword));
     });
+    on<ResendCodeRequested>((event, emit) async {
+      emit(RegisterLoading());
+      final result = await emailVerificationService.sendVerificationCode(_pendingEmail);
+      emit(result.fold(
+        (error) => RegisterError(message: error, isVerificationStep: true),
+        (_) => RegisterCodeSent(email: _pendingEmail),
+      ));
+    });
   }
 }

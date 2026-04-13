@@ -30,4 +30,11 @@ class UserPreferencesService extends ChangeNotifier {
     }
     return false;
   }
+
+  // Onboarding — stored globally (not per user)
+  bool get hasSeenOnboarding => _box.get('onboarding_seen') == 'true';
+
+  void setOnboardingSeen() {
+    _box.put('onboarding_seen', 'true');
+  }
 }

@@ -91,11 +91,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         const SizedBox(height: 16),
                         const Text(
                           'Create Account',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: AppTextStyles.title,
                         ),
                         const SizedBox(height: 32),
                         TextFormField(

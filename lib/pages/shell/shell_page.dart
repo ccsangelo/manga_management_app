@@ -16,10 +16,10 @@ class ShellPage extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Login Required', style: TextStyle(color: Colors.white)),
+        title: const Text('Login Required', style: AppTextStyles.heading),
         content: const Text(
           'You need to be logged in to access your reading list.',
-          style: TextStyle(color: Colors.grey),
+          style: AppTextStyles.bodySecondary,
         ),
         actions: [
           TextButton(

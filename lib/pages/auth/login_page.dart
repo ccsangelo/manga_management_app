@@ -58,11 +58,7 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 16),
                       const Text(
                         'Welcome Back',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: AppTextStyles.title,
                       ),
                       const SizedBox(height: 32),
                       TextFormField(

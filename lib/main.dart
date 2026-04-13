@@ -93,6 +93,7 @@ class _MyAppState extends State<MyApp> {
               brightness: Brightness.dark,
             ),
             scaffoldBackgroundColor: AppColors.background,
+            textTheme: appTextTheme,
           ),
           themeMode: ThemeMode.dark,
         ),

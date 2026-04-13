@@ -137,11 +137,7 @@ class _SectionHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.heading,
           ),
           const Spacer(),
           ?trailing,

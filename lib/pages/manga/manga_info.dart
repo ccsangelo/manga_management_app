@@ -43,12 +43,12 @@ class _MangaPageState extends State<MangaPage> {
   }
 
   void _showStatusPicker() {
-    final isLoggedIn =
-        context.read<AuthBloc>().state is AuthAuthenticated;
+    final isLoggedIn = context.read<AuthBloc>().state is AuthAuthenticated;
     if (!isLoggedIn) {
       _showLoginRequiredDialog();
       return;
     }
+    final messenger = ScaffoldMessenger.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -62,11 +62,7 @@ class _MangaPageState extends State<MangaPage> {
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
               'Set Status',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTextStyles.heading,
             ),
           ),
           const Divider(color: AppColors.surfaceVariant),
@@ -81,12 +77,15 @@ class _MangaPageState extends State<MangaPage> {
                   _status = status;
                   MangaStatusService.instance
                       .saveGenres(widget.manga.malId, widget.manga.genres);
-                  MangaStatusService.instance
-                      .saveMangaData(widget.manga);
+                  MangaStatusService.instance.saveMangaData(widget.manga);
                   MangaStatusService.instance
                       .setStatus(widget.manga.malId, status);
                 });
                 Navigator.pop(context);
+                messenger.showSnackBar(SnackBar(
+                  content: Text('Marked as "$status"'),
+                  duration: const Duration(seconds: 2),
+                ));
               },
             ),
           ),
@@ -101,6 +100,10 @@ class _MangaPageState extends State<MangaPage> {
                       .setStatus(widget.manga.malId, null);
                 });
                 Navigator.pop(context);
+                messenger.showSnackBar(const SnackBar(
+                  content: Text('Status removed'),
+                  duration: Duration(seconds: 2),
+                ));
               },
             ),
           const SizedBox(height: 8),
@@ -114,11 +117,10 @@ class _MangaPageState extends State<MangaPage> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Login Required',
-            style: TextStyle(color: Colors.white)),
+        title: const Text('Login Required', style: AppTextStyles.heading),
         content: const Text(
           'You need to be logged in to set a status on a manga.',
-          style: TextStyle(color: Colors.grey),
+          style: AppTextStyles.bodySecondary,
         ),
         actions: [
           TextButton(
@@ -177,11 +179,7 @@ class _MangaPageState extends State<MangaPage> {
 
               Text(
                 widget.manga.title,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+                style: AppTextStyles.title,
               ),
               const SizedBox(height: 8),
 
@@ -210,7 +208,7 @@ class _MangaPageState extends State<MangaPage> {
                   const SizedBox(width: 8),
                   Text(
                     '${widget.manga.score}',
-                    style: const TextStyle(fontSize: 16, color: Colors.white),
+                    style: AppTextStyles.bodyLarge,
                   ),
                 ],
               ),
@@ -229,20 +227,12 @@ class _MangaPageState extends State<MangaPage> {
                 const SizedBox(height: 8),
                 const Text(
                   'Synopsis',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: AppTextStyles.sectionHeader,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   widget.manga.synopsis,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
+                  style: AppTextStyles.bodySecondary,
                 ),
               ],
             ],
@@ -268,11 +258,7 @@ class _MangaPageState extends State<MangaPage> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.sectionHeader,
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -295,8 +281,7 @@ class _MangaPageState extends State<MangaPage> {
                         ),
                         child: Text(
                           tag,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 12),
+                          style: AppTextStyles.label,
                         ),
                       ),
                     ))

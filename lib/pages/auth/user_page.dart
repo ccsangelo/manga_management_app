@@ -76,11 +76,7 @@ class _UserPageState extends State<UserPage> {
             // Username
             Text(
               username,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTextStyles.heading,
             ),
             const SizedBox(height: 24),
 
@@ -151,11 +147,7 @@ class _UserPageState extends State<UserPage> {
                 const SizedBox(height: 16),
                 const Text(
                   'Log in to your account',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTextStyles.heading,
                 ),
                 const SizedBox(height: 32),
                 TextFormField(

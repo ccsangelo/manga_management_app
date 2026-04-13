@@ -24,6 +24,7 @@ import 'package:manga_recommendation_app/pages/shell/shell_page.dart';
 import 'package:manga_recommendation_app/pages/reading_status/status_detail_page.dart';
 import 'package:manga_recommendation_app/pages/auth/user_page.dart';
 import 'package:manga_recommendation_app/pages/auth/verification_page.dart';
+import 'package:manga_recommendation_app/pages/onboarding/onboarding_page.dart';
 import 'package:manga_recommendation_app/services/manga/manga_service.dart';
 import 'package:manga_recommendation_app/services/preferences/user_preferences_service.dart';
 
@@ -50,6 +51,12 @@ GoRouter createRouter(AuthBloc authBloc) {
       final isAuthenticated = authBloc.state is AuthAuthenticated;
       final path = state.matchedLocation;
       final authRoutes = ['/login', '/register', '/verify'];
+
+      // First run: show onboarding before anything else
+      if (!UserPreferencesService.instance.hasSeenOnboarding &&
+          path != '/onboarding') {
+        return '/onboarding';
+      }
 
       // If logged in and trying to visit auth pages, go home
       if (isAuthenticated && authRoutes.contains(path)) return '/';
@@ -179,6 +186,12 @@ GoRouter createRouter(AuthBloc authBloc) {
         path: '/reading-status/detail',
         builder: (_, state) =>
             StatusDetailPage(status: state.extra as String),
+      ),
+
+      // Onboarding (shown once on first launch)
+      GoRoute(
+        path: '/onboarding',
+        builder: (_, _) => const OnboardingPage(),
       ),
     ],
   );

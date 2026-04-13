@@ -12,3 +12,5 @@ class VerificationCodeSubmitted extends RegisterEvent {
   final String code;
   VerificationCodeSubmitted(this.code);
 }
+
+class ResendCodeRequested extends RegisterEvent {}
